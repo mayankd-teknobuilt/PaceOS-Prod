@@ -1,0 +1,140 @@
+name: Playwright CI
+
+on:
+  push:
+    branches: [main, master, 'cursor/**']
+  pull_request:
+    branches: [main, master]
+  schedule:
+    # 8:00 AM IST = 02:30 UTC (GitHub Actions cron uses UTC)
+    - cron: '30 2 * * *'
+  workflow_dispatch:
+    inputs:
+      suite:
+        description: Test suite to run
+        required: true
+        default: all
+        type: choice
+        options:
+          - all
+          - prod-modules
+          - control-tower
+          - fast
+
+concurrency:
+  group: playwright-${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  CI: true
+  PACE_FAST: false
+  BASE_URL: ${{ vars.BASE_URL || secrets.BASE_URL || 'https://goldenpasslng.pace-os.com/' }}
+  TEST_EMAIL: ${{ vars.TEST_EMAIL || secrets.TEST_EMAIL || vars.EMAIL || secrets.EMAIL }}
+  TEST_PASSWORD: ${{ vars.TEST_PASSWORD || secrets.TEST_PASSWORD || vars.PASSWORD || secrets.PASSWORD }}
+  PROD_USE_FIRST_PROJECT: ${{ vars.PROD_USE_FIRST_PROJECT || 'true' }}
+  PROD_PROJECT_NAME: ${{ vars.PROD_PROJECT_NAME }}
+  PROD_PHASE: ${{ vars.PROD_PHASE || 'Process Train - 2' }}
+  PROD_SECTION: ${{ vars.PROD_SECTION || '2200 - Main Piperack' }}
+  PROD_BLOCK: ${{ vars.PROD_BLOCK || '2210-Main Piperack (Level - 5)' }}
+  CONTROL_TOWER_PORTFOLIO_URL: ${{ vars.CONTROL_TOWER_PORTFOLIO_URL || 'https://us-controltower.pace-os.com/#/portfolio?page=1' }}
+  PLAYWRIGHT_WORKERS: ${{ vars.PLAYWRIGHT_WORKERS || '4' }}
+  CT_WORKERS: ${{ vars.CT_WORKERS || '4' }}
+  CI_CT_WORKERS: ${{ vars.CI_CT_WORKERS || '4' }}
+
+jobs:
+  prod-modules:
+    name: Prod Modules
+    if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.suite == 'all' || github.event.inputs.suite == 'prod-modules' || github.event.inputs.suite == 'fast' }}
+    timeout-minutes: 180
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: node scripts/create-ci-env.js
+      - run: node scripts/validate-ci-env.js
+      - name: Run prod modules
+        env:
+          PLAYWRIGHT_JSON_OUTPUT: report-prod-modules.json
+          PACE_FAST: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.suite == 'fast' && 'true' || 'false' }}
+        run: npx playwright test --project=prod-modules-email
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-prod-${{ github.run_id }}
+          path: test-results/
+          retention-days: 14
+
+  control-tower:
+    name: Control Tower (4 workers)
+    if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.suite == 'all' || github.event.inputs.suite == 'control-tower' || github.event.inputs.suite == 'fast' }}
+    timeout-minutes: 180
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: node scripts/create-ci-env.js
+      - run: node scripts/validate-ci-env.js
+      - name: Run Control Tower reports
+        env:
+          PLAYWRIGHT_JSON_OUTPUT: report-control-tower.json
+          PACE_FAST: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.suite == 'fast' && 'true' || 'false' }}
+        run: npx playwright test --project=control-tower-reports-email --workers=4
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-ct-${{ github.run_id }}
+          path: test-results/
+          retention-days: 14
+
+  report:
+    name: Report and notify
+    needs: [prod-modules, control-tower]
+    if: always()
+    timeout-minutes: 30
+    runs-on: ubuntu-latest
+    env:
+      SMTP_HOST: ${{ vars.SMTP_HOST || secrets.SMTP_HOST }}
+      SMTP_PORT: ${{ vars.SMTP_PORT || secrets.SMTP_PORT || '587' }}
+      SMTP_USER: ${{ vars.SMTP_USER || secrets.SMTP_USER }}
+      SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+      EMAIL_FROM: ${{ vars.EMAIL_FROM || secrets.EMAIL_FROM }}
+      EMAIL_TO: ${{ vars.EMAIL_TO || secrets.EMAIL_TO }}
+      EMAIL_SUBJECT_PREFIX: ${{ vars.EMAIL_SUBJECT_PREFIX || '[PACE QA Daily]' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - name: Download prod test results
+        if: needs.prod-modules.result != 'skipped'
+        uses: actions/download-artifact@v4
+        with:
+          name: test-results-prod-${{ github.run_id }}
+          path: test-results
+      - name: Download Control Tower test results
+        if: needs.control-tower.result != 'skipped'
+        uses: actions/download-artifact@v4
+        with:
+          name: test-results-ct-${{ github.run_id }}
+          path: test-results
+      - run: node scripts/create-ci-env.js
+      - name: Send test report email
+        run: node scripts/send-test-report-email.js
+      - name: Fail if any test job failed
+        if: needs.prod-modules.result == 'failure' || needs.control-tower.result == 'failure'
+        run: exit 1

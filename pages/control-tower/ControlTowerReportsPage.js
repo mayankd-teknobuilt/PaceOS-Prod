@@ -242,15 +242,38 @@ class ControlTowerReportsPage extends BasePage {
     }
 
     logger.info(`Report "${reportName}" has data — verifying CSV download.`);
-    const downloadPromise = this.reportsPage.waitForEvent('download', { timeout: 30000 });
-    await downloadBtn.click();
-    const download = await downloadPromise;
 
-    expect(download, `Report "${reportName}" download did not start.`).toBeTruthy();
-    const filename = download.suggestedFilename();
-    expect(filename, `Report "${reportName}" returned an empty filename.`).toBeTruthy();
-    logger.info(`Report "${reportName}" downloaded: ${filename}`);
-    await this.reportsPage.bringToFront();
+    const downloadTimeout =
+      Number(process.env.DOWNLOAD_TIMEOUT_MS) || (process.env.CI ? 120000 : 30000);
+    let lastError;
+
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        const downloadPromise = this.reportsPage.waitForEvent('download', {
+          timeout: downloadTimeout
+        });
+        await downloadBtn.click();
+        const download = await downloadPromise;
+
+        expect(download, `Report "${reportName}" download did not start.`).toBeTruthy();
+        const filename = download.suggestedFilename();
+        expect(filename, `Report "${reportName}" returned an empty filename.`).toBeTruthy();
+        logger.info(`Report "${reportName}" downloaded: ${filename}`);
+        await this.reportsPage.bringToFront();
+        return;
+      } catch (error) {
+        lastError = error;
+        if (attempt < 2) {
+          logger.warn(
+            `Report "${reportName}" download attempt ${attempt}/2 failed: ${error.message}`
+          );
+          await this.reportsPage.bringToFront();
+          await this.waitForReportSettle({ quick: true });
+        }
+      }
+    }
+
+    throw lastError;
   }
 
   async clickButton(label, stepName, options = {}) {

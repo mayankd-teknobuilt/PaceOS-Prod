@@ -1,23 +1,22 @@
 const path = require('path');
-const fs = require('fs');
 const { isFastMode } = require('./utils/fastMode');
+const { loadProdEnv } = require('./utils/loadEnv');
 
 /**
  * Shared production Playwright options (no @playwright/test import here).
  */
 function createProdPlaywrightConfig(baseDir, deviceUse = {}) {
-  const envPath = path.resolve(baseDir, '.env.local');
-  const prodEnvironment = fs.existsSync(envPath)
-    ? require('dotenv').parse(fs.readFileSync(envPath))
-    : {};
+  loadProdEnv(baseDir);
 
   process.env.PACE_TEST_ENV = 'prod';
-  require('dotenv').config({ path: envPath, override: true });
 
   const fast = isFastMode();
   const defaultWorkers = Number(process.env.PLAYWRIGHT_WORKERS || process.env.WORKERS) || 4;
   const ctWorkers = Number(process.env.CT_WORKERS || defaultWorkers);
-  const baseURL = process.env.BASE_URL || prodEnvironment.BASE_URL;
+  const ciCtWorkers = Number(process.env.CI_CT_WORKERS || ctWorkers);
+  const jsonReportFile =
+    process.env.PLAYWRIGHT_JSON_OUTPUT || 'report.json';
+  const baseURL = process.env.BASE_URL;
   const runEachModuleSpecs = process.env.PACE_MODULE_EACH === 'true';
 
   const projectUse = {
@@ -44,7 +43,8 @@ function createProdPlaywrightConfig(baseDir, deviceUse = {}) {
       : [
           ['html', { outputFolder: path.join(baseDir, 'playwright-report'), open: 'never' }],
           ['list'],
-          ['allure-playwright']
+          ['allure-playwright'],
+          ['json', { outputFile: path.join(baseDir, 'test-results', jsonReportFile) }]
         ],
 
     use: {
@@ -82,7 +82,7 @@ function createProdPlaywrightConfig(baseDir, deviceUse = {}) {
         testMatch: '**/Control-tower-reports/**/*.spec.js',
         grep: /@prod-modules/,
         fullyParallel: true,
-        workers: ctWorkers,
+        workers: process.env.CI ? ciCtWorkers : ctWorkers,
         use: {
           ...projectUse,
           actionTimeout: fast ? 20000 : 20000,

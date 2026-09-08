@@ -21,6 +21,11 @@
     "test:control-tower-reports:badge": "cross-env INCLUDE_BADGE_AUTH=true playwright test --project=control-tower-reports-badge tests/Control-tower-reports",
     "test:control-tower-reports:badge:headed": "cross-env INCLUDE_BADGE_AUTH=true playwright test --project=control-tower-reports-badge tests/Control-tower-reports --headed --workers=4",
     "test:all:login-methods": "cross-env INCLUDE_BADGE_AUTH=true playwright test",
+    "test:ci": "node scripts/validate-ci-env.js && cross-env CI=true CT_WORKERS=4 PLAYWRIGHT_JSON_OUTPUT=report-prod-modules.json playwright test --project=prod-modules-email && cross-env CI=true CT_WORKERS=4 PLAYWRIGHT_JSON_OUTPUT=report-control-tower.json playwright test --project=control-tower-reports-email --workers=4",
+    "test:ci:prod-modules": "node scripts/validate-ci-env.js && cross-env CI=true playwright test --project=prod-modules-email",
+    "test:ci:control-tower": "node scripts/validate-ci-env.js && cross-env CI=true playwright test --project=control-tower-reports-email --workers=4",
+    "test:ci:fast": "node scripts/validate-ci-env.js && cross-env CI=true PACE_FAST=true playwright test --project=prod-modules-email --project=control-tower-reports-email --workers=4",
+    "ci:install": "npm ci && npx playwright install --with-deps chromium",
     "test:ct:daily-progress": "playwright test --project=control-tower-reports-email tests/Control-tower-reports/daily-progress.spec.js",
     "test:ct:daily-progress:headed": "playwright test --project=control-tower-reports-email tests/Control-tower-reports/daily-progress.spec.js --headed",
     "test:ct:project-libraries": "playwright test --project=control-tower-reports-email tests/Control-tower-reports/project-libraries.spec.js",
@@ -50,6 +55,7 @@
     "allure-playwright": "^3.10.1",
     "dotenv": "^16.6.1",
     "cross-env": "^7.0.3",
+    "nodemailer": "^6.10.1",
     "xlsx": "^0.18.5"
   },
   "dependencies": {
