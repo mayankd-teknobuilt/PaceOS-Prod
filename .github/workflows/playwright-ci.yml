@@ -21,14 +21,15 @@ on:
           - control-tower
           - fast
 
+# Only cancel overlapping PR runs — never cancel scheduled or push runs mid-suite.
 concurrency:
-  group: playwright-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: playwright-${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   test:
     name: Playwright (${{ github.event.inputs.suite || 'all' }})
-    timeout-minutes: 180
+    timeout-minutes: 360
     runs-on: ubuntu-latest
 
     env:
@@ -43,8 +44,9 @@ jobs:
       PROD_SECTION: ${{ vars.PROD_SECTION || '2200 - Main Piperack' }}
       PROD_BLOCK: ${{ vars.PROD_BLOCK || '2210-Main Piperack (Level - 5)' }}
       CONTROL_TOWER_PORTFOLIO_URL: ${{ vars.CONTROL_TOWER_PORTFOLIO_URL || 'https://us-controltower.pace-os.com/#/portfolio?page=1' }}
-      PLAYWRIGHT_WORKERS: ${{ vars.PLAYWRIGHT_WORKERS || '4' }}
-      CT_WORKERS: ${{ vars.CT_WORKERS || '4' }}
+      PLAYWRIGHT_WORKERS: ${{ vars.PLAYWRIGHT_WORKERS || '1' }}
+      CT_WORKERS: ${{ vars.CT_WORKERS || '2' }}
+      CI_CT_WORKERS: ${{ vars.CI_CT_WORKERS || '2' }}
       SMTP_HOST: ${{ vars.SMTP_HOST || secrets.SMTP_HOST }}
       SMTP_PORT: ${{ vars.SMTP_PORT || secrets.SMTP_PORT || '587' }}
       SMTP_USER: ${{ vars.SMTP_USER || secrets.SMTP_USER }}
@@ -76,31 +78,23 @@ jobs:
       - name: Validate environment
         run: node scripts/validate-ci-env.js
 
-      - name: Run all suites
-        id: run-all
-        if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.suite == 'all' }}
-        continue-on-error: true
-        run: npx playwright test --project=prod-modules-email --project=control-tower-reports-email --workers=4
-
-      - name: Run prod modules only
+      - name: Run prod modules suite
         id: run-prod-modules
-        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.suite == 'prod-modules' }}
-        continue-on-error: true
-        run: npx playwright test --project=prod-modules-email
-
-      - name: Run Control Tower only
-        id: run-control-tower
-        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.suite == 'control-tower' }}
-        continue-on-error: true
-        run: npx playwright test --project=control-tower-reports-email --workers=4
-
-      - name: Run fast smoke
-        id: run-fast
-        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.suite == 'fast' }}
+        if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.suite == 'all' || github.event.inputs.suite == 'prod-modules' || github.event.inputs.suite == 'fast' }}
         continue-on-error: true
         env:
-          PACE_FAST: true
-        run: npx playwright test --project=prod-modules-email --project=control-tower-reports-email --workers=4
+          PLAYWRIGHT_JSON_OUTPUT: report-prod-modules.json
+          PACE_FAST: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.suite == 'fast' && 'true' || 'false' }}
+        run: npx playwright test --project=prod-modules-email
+
+      - name: Run Control Tower suite
+        id: run-control-tower
+        if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.suite == 'all' || github.event.inputs.suite == 'control-tower' || github.event.inputs.suite == 'fast' }}
+        continue-on-error: true
+        env:
+          PLAYWRIGHT_JSON_OUTPUT: report-control-tower.json
+          PACE_FAST: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.suite == 'fast' && 'true' || 'false' }}
+        run: npx playwright test --project=control-tower-reports-email
 
       - name: Send test report email
         if: always()
@@ -126,8 +120,6 @@ jobs:
 
       - name: Fail job if tests failed
         if: |
-          (steps.run-all.outcome == 'failure') ||
           (steps.run-prod-modules.outcome == 'failure') ||
-          (steps.run-control-tower.outcome == 'failure') ||
-          (steps.run-fast.outcome == 'failure')
+          (steps.run-control-tower.outcome == 'failure')
         run: exit 1

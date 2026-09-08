@@ -5,7 +5,7 @@ const { loadProdEnv } = require('../utils/loadEnv');
 
 loadProdEnv();
 
-const REPORT_PATH = path.resolve(process.cwd(), 'test-results', 'report.json');
+const REPORT_DIR = path.resolve(process.cwd(), 'test-results');
 
 function pickEnv(keys) {
   for (const key of keys) {
@@ -38,15 +38,31 @@ function collectTestsFromSuite(suite, titles = []) {
 }
 
 function loadTestReport() {
-  if (!fs.existsSync(REPORT_PATH)) {
+  const reportDir = path.resolve(process.cwd(), 'test-results');
+  const reportFiles = [];
+
+  if (fs.existsSync(reportDir)) {
+    for (const file of fs.readdirSync(reportDir)) {
+      if (/^report.*\.json$/i.test(file)) {
+        reportFiles.push(path.join(reportDir, file));
+      }
+    }
+  }
+
+  if (!reportFiles.length) {
     return {
       rows: [],
       summary: { passed: 0, failed: 0, skipped: 0, flaky: 0, total: 0 }
     };
   }
 
-  const report = JSON.parse(fs.readFileSync(REPORT_PATH, 'utf8'));
-  const rows = (report.suites || []).flatMap((suite) => collectTestsFromSuite(suite));
+  const rows = [];
+  for (const reportFile of reportFiles.sort()) {
+    const report = JSON.parse(fs.readFileSync(reportFile, 'utf8'));
+    rows.push(...(report.suites || []).flatMap((suite) => collectTestsFromSuite(suite)));
+    console.log(`[email] Loaded report: ${path.basename(reportFile)}`);
+  }
+
   const summary = { passed: 0, failed: 0, skipped: 0, flaky: 0, total: rows.length };
 
   for (const row of rows) {

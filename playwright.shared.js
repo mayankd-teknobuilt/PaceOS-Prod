@@ -13,6 +13,9 @@ function createProdPlaywrightConfig(baseDir, deviceUse = {}) {
   const fast = isFastMode();
   const defaultWorkers = Number(process.env.PLAYWRIGHT_WORKERS || process.env.WORKERS) || 4;
   const ctWorkers = Number(process.env.CT_WORKERS || defaultWorkers);
+  const ciCtWorkers = Number(process.env.CI_CT_WORKERS || (process.env.CI ? 2 : ctWorkers));
+  const jsonReportFile =
+    process.env.PLAYWRIGHT_JSON_OUTPUT || 'report.json';
   const baseURL = process.env.BASE_URL;
   const runEachModuleSpecs = process.env.PACE_MODULE_EACH === 'true';
 
@@ -41,7 +44,7 @@ function createProdPlaywrightConfig(baseDir, deviceUse = {}) {
           ['html', { outputFolder: path.join(baseDir, 'playwright-report'), open: 'never' }],
           ['list'],
           ['allure-playwright'],
-          ['json', { outputFile: path.join(baseDir, 'test-results', 'report.json') }]
+          ['json', { outputFile: path.join(baseDir, 'test-results', jsonReportFile) }]
         ],
 
     use: {
@@ -78,8 +81,8 @@ function createProdPlaywrightConfig(baseDir, deviceUse = {}) {
         name: 'control-tower-reports-email',
         testMatch: '**/Control-tower-reports/**/*.spec.js',
         grep: /@prod-modules/,
-        fullyParallel: true,
-        workers: ctWorkers,
+        fullyParallel: process.env.CI ? false : true,
+        workers: process.env.CI ? ciCtWorkers : ctWorkers,
         use: {
           ...projectUse,
           actionTimeout: fast ? 20000 : 20000,

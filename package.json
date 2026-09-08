@@ -21,7 +21,7 @@
     "test:control-tower-reports:badge": "cross-env INCLUDE_BADGE_AUTH=true playwright test --project=control-tower-reports-badge tests/Control-tower-reports",
     "test:control-tower-reports:badge:headed": "cross-env INCLUDE_BADGE_AUTH=true playwright test --project=control-tower-reports-badge tests/Control-tower-reports --headed --workers=4",
     "test:all:login-methods": "cross-env INCLUDE_BADGE_AUTH=true playwright test",
-    "test:ci": "node scripts/validate-ci-env.js && cross-env CI=true playwright test --project=prod-modules-email --project=control-tower-reports-email --workers=4",
+    "test:ci": "node scripts/validate-ci-env.js && cross-env CI=true PLAYWRIGHT_JSON_OUTPUT=report-prod-modules.json playwright test --project=prod-modules-email && cross-env CI=true PLAYWRIGHT_JSON_OUTPUT=report-control-tower.json playwright test --project=control-tower-reports-email",
     "test:ci:prod-modules": "node scripts/validate-ci-env.js && cross-env CI=true playwright test --project=prod-modules-email",
     "test:ci:control-tower": "node scripts/validate-ci-env.js && cross-env CI=true playwright test --project=control-tower-reports-email --workers=4",
     "test:ci:fast": "node scripts/validate-ci-env.js && cross-env CI=true PACE_FAST=true playwright test --project=prod-modules-email --project=control-tower-reports-email --workers=4",
