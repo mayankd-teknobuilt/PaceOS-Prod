@@ -1,0 +1,29 @@
+
+# Playwright
+node_modules/
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+/playwright/.auth/
+.auth/
+auth.json
+stage-auth.json
+# Allure
+allure-report/
+allure-results/
+
+# Logs
+logs/
+
+# Environment variables
+.env
+.env.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+testdata/iwp-state.json
+testdata/iwp-deleted-state.json
+testdata/released-iwp.json
