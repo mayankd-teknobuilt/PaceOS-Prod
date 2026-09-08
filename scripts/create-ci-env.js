@@ -1,5 +1,10 @@
 const fs = require('fs');
 const path = require('path');
+const { loadProdEnv } = require('../utils/loadEnv');
+const { normalizeCiEnv } = require('../utils/ciEnv');
+
+loadProdEnv();
+normalizeCiEnv();
 
 const KEYS = [
   'BASE_URL',
@@ -21,11 +26,6 @@ const KEYS = [
 const lines = KEYS.filter((key) => process.env[key]?.trim()).map(
   (key) => `${key}=${process.env[key].trim()}`
 );
-
-if (!lines.length) {
-  console.warn('[ci-env] No environment variables found to write.');
-  process.exit(0);
-}
 
 const envPath = path.resolve(process.cwd(), '.env.local');
 fs.writeFileSync(envPath, `${lines.join('\n')}\n`, 'utf8');

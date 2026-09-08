@@ -2,7 +2,7 @@ name: Playwright CI
 
 on:
   push:
-    branches: [main, master]
+    branches: [main, master, 'cursor/**']
   pull_request:
     branches: [main, master]
   schedule:
@@ -34,8 +34,8 @@ jobs:
       CI: true
       PACE_FAST: false
       BASE_URL: ${{ vars.BASE_URL || secrets.BASE_URL || 'https://goldenpasslng.pace-os.com/' }}
-      TEST_EMAIL: ${{ secrets.TEST_EMAIL }}
-      TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
+      TEST_EMAIL: ${{ vars.TEST_EMAIL || secrets.TEST_EMAIL || vars.EMAIL || secrets.EMAIL }}
+      TEST_PASSWORD: ${{ vars.TEST_PASSWORD || secrets.TEST_PASSWORD || vars.PASSWORD || secrets.PASSWORD }}
       PROD_USE_FIRST_PROJECT: ${{ vars.PROD_USE_FIRST_PROJECT || 'true' }}
       PROD_PROJECT_NAME: ${{ vars.PROD_PROJECT_NAME }}
       PROD_PHASE: ${{ vars.PROD_PHASE || 'Process Train - 2' }}
@@ -70,25 +70,27 @@ jobs:
 
       - name: Run all suites
         if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.suite == 'all' }}
-        run: npm run test:ci
+        run: npx playwright test --project=prod-modules-email --project=control-tower-reports-email --workers=4
 
       - name: Run prod modules only
         if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.suite == 'prod-modules' }}
-        run: npm run test:ci:prod-modules
+        run: npx playwright test --project=prod-modules-email
 
       - name: Run Control Tower only
         if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.suite == 'control-tower' }}
-        run: npm run test:ci:control-tower
+        run: npx playwright test --project=control-tower-reports-email --workers=4
 
       - name: Run fast smoke
         if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.suite == 'fast' }}
-        run: npm run test:ci:fast
+        env:
+          PACE_FAST: true
+        run: npx playwright test --project=prod-modules-email --project=control-tower-reports-email --workers=4
 
       - name: Upload Playwright report
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-report
+          name: playwright-report-${{ github.run_id }}
           path: |
             playwright-report/
             test-results/
@@ -98,6 +100,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: allure-results
+          name: allure-results-${{ github.run_id }}
           path: allure-results/
           retention-days: 14
