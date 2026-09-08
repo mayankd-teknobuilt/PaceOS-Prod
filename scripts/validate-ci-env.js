@@ -12,8 +12,24 @@ if (missing.length) {
     console.error(`  - ${key}`);
   }
   console.error('');
-  console.error('Set them in CI/CD secrets/variables or in .env.local for local runs.');
-  console.error('See .env.example for the full list of supported variables.');
+
+  if (process.env.GITHUB_ACTIONS === 'true') {
+    console.error('Configure GitHub Actions for this repository:');
+    console.error('  Settings -> Secrets and variables -> Actions');
+    console.error('');
+    console.error('Required repository secrets:');
+    console.error('  TEST_EMAIL     Login email for production tests');
+    console.error('  TEST_PASSWORD  Login password for production tests');
+    console.error('');
+    console.error('Required repository variable (or secret):');
+    console.error('  BASE_URL       e.g. https://goldenpasslng.pace-os.com/');
+    console.error('');
+    console.error(`Repository: ${process.env.GITHUB_REPOSITORY || 'unknown'}`);
+  } else {
+    console.error('Set them in CI/CD secrets/variables or in .env.local for local runs.');
+    console.error('See .env.example for the full list of supported variables.');
+  }
+
   process.exit(1);
 }
 
