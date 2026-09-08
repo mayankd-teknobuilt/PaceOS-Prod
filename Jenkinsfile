@@ -86,6 +86,17 @@ pipeline {
 
     post {
         always {
+            script {
+                try {
+                    if (isUnix()) {
+                        sh 'node scripts/send-test-report-email.js'
+                    } else {
+                        bat 'node scripts/send-test-report-email.js'
+                    }
+                } catch (err) {
+                    echo "Email report skipped or failed: ${err.message}"
+                }
+            }
             archiveArtifacts artifacts: 'playwright-report/**,test-results/**,allure-results/**', allowEmptyArchive: true
             allure([
                 includeProperties: false,

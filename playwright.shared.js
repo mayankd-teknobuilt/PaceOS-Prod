@@ -40,7 +40,8 @@ function createProdPlaywrightConfig(baseDir, deviceUse = {}) {
       : [
           ['html', { outputFolder: path.join(baseDir, 'playwright-report'), open: 'never' }],
           ['list'],
-          ['allure-playwright']
+          ['allure-playwright'],
+          ['json', { outputFile: path.join(baseDir, 'test-results', 'report.json') }]
         ],
 
     use: {

@@ -6,7 +6,8 @@ on:
   pull_request:
     branches: [main, master]
   schedule:
-    - cron: '0 6 * * 1-5'
+    # 8:00 AM IST = 02:30 UTC (GitHub Actions cron uses UTC)
+    - cron: '30 2 * * *'
   workflow_dispatch:
     inputs:
       suite:
@@ -44,6 +45,13 @@ jobs:
       CONTROL_TOWER_PORTFOLIO_URL: ${{ vars.CONTROL_TOWER_PORTFOLIO_URL || 'https://us-controltower.pace-os.com/#/portfolio?page=1' }}
       PLAYWRIGHT_WORKERS: ${{ vars.PLAYWRIGHT_WORKERS || '4' }}
       CT_WORKERS: ${{ vars.CT_WORKERS || '4' }}
+      SMTP_HOST: ${{ vars.SMTP_HOST || secrets.SMTP_HOST }}
+      SMTP_PORT: ${{ vars.SMTP_PORT || secrets.SMTP_PORT || '587' }}
+      SMTP_USER: ${{ vars.SMTP_USER || secrets.SMTP_USER }}
+      SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+      EMAIL_FROM: ${{ vars.EMAIL_FROM || secrets.EMAIL_FROM }}
+      EMAIL_TO: ${{ vars.EMAIL_TO || secrets.EMAIL_TO }}
+      EMAIL_SUBJECT_PREFIX: ${{ vars.EMAIL_SUBJECT_PREFIX || '[PACE QA Daily]' }}
 
     steps:
       - name: Checkout
@@ -69,22 +77,34 @@ jobs:
         run: node scripts/validate-ci-env.js
 
       - name: Run all suites
+        id: run-all
         if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.suite == 'all' }}
+        continue-on-error: true
         run: npx playwright test --project=prod-modules-email --project=control-tower-reports-email --workers=4
 
       - name: Run prod modules only
+        id: run-prod-modules
         if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.suite == 'prod-modules' }}
+        continue-on-error: true
         run: npx playwright test --project=prod-modules-email
 
       - name: Run Control Tower only
+        id: run-control-tower
         if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.suite == 'control-tower' }}
+        continue-on-error: true
         run: npx playwright test --project=control-tower-reports-email --workers=4
 
       - name: Run fast smoke
+        id: run-fast
         if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.suite == 'fast' }}
+        continue-on-error: true
         env:
           PACE_FAST: true
         run: npx playwright test --project=prod-modules-email --project=control-tower-reports-email --workers=4
+
+      - name: Send test report email
+        if: always()
+        run: node scripts/send-test-report-email.js
 
       - name: Upload Playwright report
         if: always()
@@ -103,3 +123,11 @@ jobs:
           name: allure-results-${{ github.run_id }}
           path: allure-results/
           retention-days: 14
+
+      - name: Fail job if tests failed
+        if: |
+          (steps.run-all.outcome == 'failure') ||
+          (steps.run-prod-modules.outcome == 'failure') ||
+          (steps.run-control-tower.outcome == 'failure') ||
+          (steps.run-fast.outcome == 'failure')
+        run: exit 1

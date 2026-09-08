@@ -20,7 +20,14 @@ const KEYS = [
   'CT_WORKERS',
   'INCLUDE_BADGE_AUTH',
   'BADGE_NUMBER',
-  'BADGE_PASSWORD'
+  'BADGE_PASSWORD',
+  'SMTP_HOST',
+  'SMTP_PORT',
+  'SMTP_USER',
+  'SMTP_PASSWORD',
+  'EMAIL_FROM',
+  'EMAIL_TO',
+  'EMAIL_SUBJECT_PREFIX'
 ];
 
 const lines = KEYS.filter((key) => process.env[key]?.trim()).map(

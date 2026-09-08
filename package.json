@@ -55,6 +55,7 @@
     "allure-playwright": "^3.10.1",
     "dotenv": "^16.6.1",
     "cross-env": "^7.0.3",
+    "nodemailer": "^6.10.1",
     "xlsx": "^0.18.5"
   },
   "dependencies": {
