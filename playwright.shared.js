@@ -13,7 +13,7 @@ function createProdPlaywrightConfig(baseDir, deviceUse = {}) {
   const fast = isFastMode();
   const defaultWorkers = Number(process.env.PLAYWRIGHT_WORKERS || process.env.WORKERS) || 4;
   const ctWorkers = Number(process.env.CT_WORKERS || defaultWorkers);
-  const ciCtWorkers = Number(process.env.CI_CT_WORKERS || (process.env.CI ? 2 : ctWorkers));
+  const ciCtWorkers = Number(process.env.CI_CT_WORKERS || ctWorkers);
   const jsonReportFile =
     process.env.PLAYWRIGHT_JSON_OUTPUT || 'report.json';
   const baseURL = process.env.BASE_URL;
@@ -81,7 +81,7 @@ function createProdPlaywrightConfig(baseDir, deviceUse = {}) {
         name: 'control-tower-reports-email',
         testMatch: '**/Control-tower-reports/**/*.spec.js',
         grep: /@prod-modules/,
-        fullyParallel: process.env.CI ? false : true,
+        fullyParallel: true,
         workers: process.env.CI ? ciCtWorkers : ctWorkers,
         use: {
           ...projectUse,
