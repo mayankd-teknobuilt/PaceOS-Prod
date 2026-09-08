@@ -9,6 +9,16 @@ const KNOWN_APP_ERRORS = [
 
 const API_RESOURCE_TYPES = new Set(['fetch', 'xhr']);
 
+// Analytics microservice can return 401 while the CT UI still renders "no data" for a report.
+const ANALYTICS_API_401 = /us-dataservices-api\.paceos\.io\/api\/v1\/analytics/i;
+
+function shouldIgnoreHttpError(status, url) {
+  if (status === 401 && ANALYTICS_API_401.test(url)) {
+    return true;
+  }
+  return false;
+}
+
 function createErrorMonitor(options = {}) {
   const { includeDocument = false } = options;
   const errors = [];
@@ -32,6 +42,7 @@ function createErrorMonitor(options = {}) {
       const isDocument = resourceType === 'document';
 
       if (!isApiCall && !(includeDocument && isDocument)) return;
+      if (shouldIgnoreHttpError(status, response.url())) return;
       errors.push(`HTTP ${status}: ${response.url()}`);
     });
   }
