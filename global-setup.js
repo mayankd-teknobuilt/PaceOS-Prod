@@ -1,9 +1,9 @@
 const path = require('path');
 const fs = require('fs');
 const { chromium } = require('@playwright/test');
+const { loadProdEnv } = require('./utils/loadEnv');
 
-const envPath = path.resolve(__dirname, '.env.local');
-require('dotenv').config({ path: envPath, override: true });
+loadProdEnv();
 
 const { performLogin } = require('./utils/prodAuth');
 const { selectProdProjectContext } = require('./utils/prodProjectContext');

@@ -1,23 +1,19 @@
 const path = require('path');
-const fs = require('fs');
 const { isFastMode } = require('./utils/fastMode');
+const { loadProdEnv } = require('./utils/loadEnv');
 
 /**
  * Shared production Playwright options (no @playwright/test import here).
  */
 function createProdPlaywrightConfig(baseDir, deviceUse = {}) {
-  const envPath = path.resolve(baseDir, '.env.local');
-  const prodEnvironment = fs.existsSync(envPath)
-    ? require('dotenv').parse(fs.readFileSync(envPath))
-    : {};
+  loadProdEnv(baseDir);
 
   process.env.PACE_TEST_ENV = 'prod';
-  require('dotenv').config({ path: envPath, override: true });
 
   const fast = isFastMode();
   const defaultWorkers = Number(process.env.PLAYWRIGHT_WORKERS || process.env.WORKERS) || 4;
   const ctWorkers = Number(process.env.CT_WORKERS || defaultWorkers);
-  const baseURL = process.env.BASE_URL || prodEnvironment.BASE_URL;
+  const baseURL = process.env.BASE_URL;
   const runEachModuleSpecs = process.env.PACE_MODULE_EACH === 'true';
 
   const projectUse = {

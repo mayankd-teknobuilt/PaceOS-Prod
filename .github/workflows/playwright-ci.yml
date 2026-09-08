@@ -1,0 +1,130 @@
+name: Playwright CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  schedule:
+    - cron: '0 6 * * 1-5'
+  workflow_dispatch:
+    inputs:
+      suite:
+        description: Test suite to run
+        required: true
+        default: all
+        type: choice
+        options:
+          - all
+          - prod-modules
+          - control-tower
+          - fast
+
+concurrency:
+  group: playwright-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CI: true
+  PACE_FAST: false
+
+jobs:
+  test:
+    name: Playwright (${{ github.event.inputs.suite || 'all' }})
+    timeout-minutes: 180
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Validate environment
+        run: node scripts/validate-ci-env.js
+        env:
+          BASE_URL: ${{ secrets.BASE_URL }}
+          TEST_EMAIL: ${{ secrets.TEST_EMAIL }}
+          TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
+
+      - name: Run all suites
+        if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.suite == 'all' }}
+        run: npm run test:ci
+        env:
+          BASE_URL: ${{ secrets.BASE_URL }}
+          TEST_EMAIL: ${{ secrets.TEST_EMAIL }}
+          TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
+          PROD_USE_FIRST_PROJECT: ${{ vars.PROD_USE_FIRST_PROJECT || 'true' }}
+          PROD_PHASE: ${{ vars.PROD_PHASE }}
+          PROD_SECTION: ${{ vars.PROD_SECTION }}
+          PROD_BLOCK: ${{ vars.PROD_BLOCK }}
+          CONTROL_TOWER_PORTFOLIO_URL: ${{ vars.CONTROL_TOWER_PORTFOLIO_URL }}
+          PLAYWRIGHT_WORKERS: ${{ vars.PLAYWRIGHT_WORKERS || '4' }}
+          CT_WORKERS: ${{ vars.CT_WORKERS || '4' }}
+
+      - name: Run prod modules only
+        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.suite == 'prod-modules' }}
+        run: npm run test:ci:prod-modules
+        env:
+          BASE_URL: ${{ secrets.BASE_URL }}
+          TEST_EMAIL: ${{ secrets.TEST_EMAIL }}
+          TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
+          PROD_USE_FIRST_PROJECT: ${{ vars.PROD_USE_FIRST_PROJECT || 'true' }}
+          PROD_PHASE: ${{ vars.PROD_PHASE }}
+          PROD_SECTION: ${{ vars.PROD_SECTION }}
+          PROD_BLOCK: ${{ vars.PROD_BLOCK }}
+
+      - name: Run Control Tower only
+        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.suite == 'control-tower' }}
+        run: npm run test:ci:control-tower
+        env:
+          BASE_URL: ${{ secrets.BASE_URL }}
+          TEST_EMAIL: ${{ secrets.TEST_EMAIL }}
+          TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
+          PROD_USE_FIRST_PROJECT: ${{ vars.PROD_USE_FIRST_PROJECT || 'true' }}
+          PROD_PHASE: ${{ vars.PROD_PHASE }}
+          PROD_SECTION: ${{ vars.PROD_SECTION }}
+          PROD_BLOCK: ${{ vars.PROD_BLOCK }}
+          CONTROL_TOWER_PORTFOLIO_URL: ${{ vars.CONTROL_TOWER_PORTFOLIO_URL }}
+          CT_WORKERS: ${{ vars.CT_WORKERS || '4' }}
+
+      - name: Run fast smoke
+        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.suite == 'fast' }}
+        run: npm run test:ci:fast
+        env:
+          BASE_URL: ${{ secrets.BASE_URL }}
+          TEST_EMAIL: ${{ secrets.TEST_EMAIL }}
+          TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
+          PROD_USE_FIRST_PROJECT: ${{ vars.PROD_USE_FIRST_PROJECT || 'true' }}
+          PROD_PHASE: ${{ vars.PROD_PHASE }}
+          PROD_SECTION: ${{ vars.PROD_SECTION }}
+          PROD_BLOCK: ${{ vars.PROD_BLOCK }}
+          CONTROL_TOWER_PORTFOLIO_URL: ${{ vars.CONTROL_TOWER_PORTFOLIO_URL }}
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14
+
+      - name: Upload Allure results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: allure-results
+          path: allure-results/
+          retention-days: 14
