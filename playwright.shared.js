@@ -29,6 +29,9 @@ function createProdPlaywrightConfig(baseDir, deviceUse = {}) {
     ? '**/prod-modules/all-modules.spec.js'
     : '**/prod-modules/All Modules/**/*.spec.js';
 
+  const moduleWorkers = runEachModuleSpecs ? defaultWorkers : 1;
+  const moduleParallel = runEachModuleSpecs;
+
   return {
     globalSetup: path.join(baseDir, 'global-setup.js'),
     testDir: path.join(baseDir, 'tests'),
@@ -64,8 +67,8 @@ function createProdPlaywrightConfig(baseDir, deviceUse = {}) {
         testMatch: '**/prod-modules/**/*.spec.js',
         testIgnore: moduleTestIgnore,
         grep: /@prod-modules/,
-        fullyParallel: false,
-        workers: 1,
+        fullyParallel: moduleParallel,
+        workers: moduleWorkers,
         use: { ...projectUse, loginMethod: 'credentials' }
       },
       {
@@ -73,8 +76,8 @@ function createProdPlaywrightConfig(baseDir, deviceUse = {}) {
         testMatch: '**/prod-modules/**/*.spec.js',
         testIgnore: moduleTestIgnore,
         grep: /@prod-modules/,
-        fullyParallel: false,
-        workers: 1,
+        fullyParallel: moduleParallel,
+        workers: moduleWorkers,
         use: { ...projectUse, loginMethod: 'badge' }
       },
       {
