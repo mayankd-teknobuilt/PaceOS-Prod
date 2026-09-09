@@ -1,0 +1,10 @@
+# Keep GitHub language stats focused on source code, not generated test output.
+playwright-report/** linguist-generated=true
+test-results/** linguist-generated=true
+allure-report/** linguist-generated=true
+allure-results/** linguist-generated=true
+blob-report/** linguist-generated=true
+
+# Local screenshots and exported catalogs are not application source.
+login-after-click.png linguist-vendored=true
+exports/** linguist-vendored=true
