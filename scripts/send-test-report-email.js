@@ -141,13 +141,14 @@ async function sendReportEmail() {
 
   const report = loadTestReport();
   const overall = statusLabel(report.summary);
-  const prefix = pickEnv(['EMAIL_SUBJECT_PREFIX']) || '[PACE QA]';
+  const prefix = pickEnv(['EMAIL_SUBJECT_PREFIX']) || '[Prod Sanity PACE QA Daily Report]';
   const subject = `${prefix} ${overall} — ${report.summary.passed}/${report.summary.total} passed`;
 
   const transporter = nodemailer.createTransport({
     host,
     port,
     secure: port === 465,
+    requireTLS: port === 587,
     auth: { user, pass }
   });
 
