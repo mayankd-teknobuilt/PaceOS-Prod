@@ -105,13 +105,13 @@ jobs:
     timeout-minutes: 30
     runs-on: ubuntu-latest
     env:
-      SMTP_HOST: ${{ vars.SMTP_HOST || secrets.SMTP_HOST }}
+      SMTP_HOST: ${{ vars.SMTP_HOST || secrets.SMTP_HOST || 'smtp.office365.com' }}
       SMTP_PORT: ${{ vars.SMTP_PORT || secrets.SMTP_PORT || '587' }}
-      SMTP_USER: ${{ vars.SMTP_USER || secrets.SMTP_USER }}
+      SMTP_USER: ${{ vars.SMTP_USER || secrets.SMTP_USER || 'mayankd@teknobuilt.com' }}
       SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
-      EMAIL_FROM: ${{ vars.EMAIL_FROM || secrets.EMAIL_FROM }}
-      EMAIL_TO: ${{ vars.EMAIL_TO || secrets.EMAIL_TO }}
-      EMAIL_SUBJECT_PREFIX: ${{ vars.EMAIL_SUBJECT_PREFIX || '[PACE QA Daily]' }}
+      EMAIL_FROM: ${{ vars.EMAIL_FROM || secrets.EMAIL_FROM || 'mayankd@teknobuilt.com' }}
+      EMAIL_TO: ${{ vars.EMAIL_TO || secrets.EMAIL_TO || 'mayankd@teknobuilt.com' }}
+      EMAIL_SUBJECT_PREFIX: ${{ vars.EMAIL_SUBJECT_PREFIX || '[Prod Sanity PACE QA Daily Report]' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
