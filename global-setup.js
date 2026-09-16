@@ -52,10 +52,7 @@ module.exports = async function globalSetup() {
   fs.mkdirSync(AUTH_DIR, { recursive: true });
 
   const workers = Number(process.env.PLAYWRIGHT_WORKERS || process.env.WORKERS) || 4;
-  const parallelModules = process.env.PACE_MODULE_EACH !== 'false';
-  console.log(
-    `[global-setup] workers=${workers}, module mode=${parallelModules ? 'parallel (each spec)' : 'single session'}`
-  );
+  console.log(`[global-setup] workers=${workers}, module mode=parallel (each spec)`);
 
   const tasks = [createAuthState('credentials')];
 

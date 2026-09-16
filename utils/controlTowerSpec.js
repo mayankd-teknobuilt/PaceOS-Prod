@@ -131,7 +131,42 @@ async function runAllReportsInSession({ controlTower, test }) {
 }
 
 /**
+ * One Playwright test per report/trend case (parallel-friendly).
+ */
+function registerSingleReportTest(test, category, reportName) {
+  const cases = buildReportTestCases(category);
+  const testCase = cases.find(item => item.reportName === reportName);
+
+  if (category.prodEnabled === false) {
+    test.describe.skip(`@prod-modules Control Tower - ${category.name} - ${reportName}`, () => {
+      test('not available on production Control Tower', () => {});
+    });
+    return;
+  }
+
+  if (!testCase) {
+    throw new Error(`Report "${reportName}" not found in category "${category.slug}"`);
+  }
+
+  test.describe(`@prod-modules Control Tower - ${category.name} - ${reportName}`, () => {
+    test('opens and loads without application errors', async ({ controlTower }) => {
+      test.setTimeout(300000);
+      const failure = await runReportWithRetry(testCase, {
+        navigation: controlTower.navigation,
+        errorMonitor: controlTower.errorMonitor,
+        test
+      });
+
+      if (failure) {
+        throw failure.error;
+      }
+    });
+  });
+}
+
+/**
  * One test per category — all reports sequential, CT tab stays open between reports.
+ * @deprecated Prefer generated per-report specs under tests/Control-tower-reports/reports/.
  */
 function registerCategorySessionTest(test, category) {
   if (category.prodEnabled === false) {
@@ -184,6 +219,7 @@ module.exports = {
   runCategoryInSession,
   runAllReportsInSession,
   registerCategorySessionTest,
+  registerSingleReportTest,
   registerAllReportsSessionTest,
   buildReportTestCases,
   buildAllReportTestCases
