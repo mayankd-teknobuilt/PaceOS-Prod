@@ -20,12 +20,13 @@ const modules = [
   { tabIndex: 0, tabName: TABS.ON_SITE_CONSTRUCTION_EXECUTION, moduleIndex: 5, moduleName: 'Joint Integrity Management' },
   { tabIndex: 0, tabName: TABS.ON_SITE_CONSTRUCTION_EXECUTION, moduleIndex: 6, moduleName: 'Heat Trace' },
   { tabIndex: 1, tabName: TABS.HEALTH_SAFETY_ENVIRONMENT, moduleIndex: 0, moduleName: 'Project Information Hub' },
-  { tabIndex: 1, tabName: TABS.HEALTH_SAFETY_ENVIRONMENT, moduleIndex: 1, moduleName: 'Audits' },
+  { tabIndex: 1, tabName: TABS.HEALTH_SAFETY_ENVIRONMENT, moduleIndex: 1, moduleName: 'Audits / Compliance' },
   { tabIndex: 1, tabName: TABS.HEALTH_SAFETY_ENVIRONMENT, moduleIndex: 2, moduleName: 'Observation and Intervention' },
   { tabIndex: 2, tabName: TABS.DIGITAL_CONTROL_TOWER, moduleIndex: 0, moduleName: 'Geoplot Radar' },
   { tabIndex: 2, tabName: TABS.DIGITAL_CONTROL_TOWER, moduleIndex: 1, moduleName: 'Digital Control Tower' },
   { tabIndex: 2, tabName: TABS.DIGITAL_CONTROL_TOWER, moduleIndex: 2, moduleName: 'Action Tracker' },
   { tabIndex: 2, tabName: TABS.DIGITAL_CONTROL_TOWER, moduleIndex: 3, moduleName: 'HSE Plus Control Tower' },
+  { tabIndex: 2, tabName: TABS.DIGITAL_CONTROL_TOWER, moduleIndex: 4, moduleName: 'McDermott PowerBI' },
   { tabIndex: 3, tabName: TABS.PACE_ADMINISTRATION, moduleIndex: 0, moduleName: 'Projects' },
   { tabIndex: 3, tabName: TABS.PACE_ADMINISTRATION, moduleIndex: 1, moduleName: 'Users' },
   { tabIndex: 3, tabName: TABS.PACE_ADMINISTRATION, moduleIndex: 2, moduleName: 'Invite Users' },
@@ -36,8 +37,13 @@ const modules = [
   { tabIndex: 3, tabName: TABS.PACE_ADMINISTRATION, moduleIndex: 7, moduleName: 'Portfolio Manager' }
 ];
 
+const MODULE_ALIASES = {
+  Audits: 'Audits / Compliance'
+};
+
 function getByName(moduleName) {
-  const meta = modules.find(module => module.moduleName === moduleName);
+  const resolvedName = MODULE_ALIASES[moduleName] || moduleName;
+  const meta = modules.find(module => module.moduleName === resolvedName);
   if (!meta) {
     throw new Error(`Unknown production module: "${moduleName}". Update testdata/stageModules.js.`);
   }

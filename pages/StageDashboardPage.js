@@ -24,9 +24,46 @@ class StageDashboardPage extends BasePage {
   }
 
   moduleCardLocator(moduleName) {
-    return this.moduleCards
-      .filter({ has: this.page.getByText(moduleName, { exact: true }) })
-      .first();
+    const label = this.page.locator('.cubeInnerText p').filter({ hasText: new RegExp(`^${this.escapeRegExp(moduleName)}$`, 'i') });
+    return this.moduleCards.filter({ has: label }).first();
+  }
+
+  escapeRegExp(value) {
+    return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
+  async waitForTabModules() {
+    await expect(this.moduleCards.first(), 'Dashboard modules did not load for the selected tab.').toBeVisible({
+      timeout: 30000
+    });
+
+    if (await this.loadingIndicator.count()) {
+      await this.loadingIndicator.first().waitFor({ state: 'hidden', timeout: 30000 }).catch(() => {});
+    }
+  }
+
+  async resolveModuleCard(moduleMeta) {
+    const { moduleName, tabName, moduleIndex } = moduleMeta;
+    const byName = this.moduleCardLocator(moduleName);
+
+    if (await byName.isVisible().catch(() => false)) {
+      return byName;
+    }
+
+    if (typeof moduleIndex === 'number') {
+      const byIndex = this.moduleCards.nth(moduleIndex);
+      const indexVisible = await byIndex.isVisible().catch(() => false);
+      if (indexVisible) {
+        const label = (await byIndex.locator('.cubeInnerText p').first().innerText().catch(() => '')).trim();
+        logger.info(`Resolved module "${moduleName}" by index ${moduleIndex} (label: "${label}") on tab "${tabName}".`);
+        return byIndex;
+      }
+    }
+
+    await expect(byName, `Module "${moduleName}" was not visible on tab "${tabName}".`).toBeVisible({
+      timeout: 20000
+    });
+    return byName;
   }
 
   tabLocator(tabName) {
@@ -126,6 +163,7 @@ class StageDashboardPage extends BasePage {
     await expect(tab, `Dashboard tab "${tabName}" was not found.`).toBeVisible({ timeout: 20000 });
     await tab.click({ force: true });
     await pauseForVisibility(this.page, `Opened tab: ${tabName}`);
+    await this.waitForTabModules();
     if (!isFastMode()) {
       await this.page.waitForTimeout(300);
     }
@@ -136,9 +174,7 @@ class StageDashboardPage extends BasePage {
 
     await this.returnToDashboard(tabName);
 
-    const moduleCard = this.moduleCardLocator(moduleName);
-    await expect(moduleCard, `Module "${moduleName}" was not visible on tab "${tabName}".`)
-      .toBeVisible({ timeout: 20000 });
+    const moduleCard = await this.resolveModuleCard(moduleMeta);
 
     logger.info(`Opening module: ${tabName} -> ${moduleName}`);
     if (!isFastMode()) {
