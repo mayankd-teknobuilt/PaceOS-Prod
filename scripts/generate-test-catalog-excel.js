@@ -8,13 +8,13 @@ const XLSX = require('xlsx');
 const { modules } = require('../testdata/stageModules');
 const { categories } = require('../testdata/control-tower');
 const { buildReportTestCases } = require('../utils/controlTowerParallel');
+const { toSlug } = require('../utils/moduleSlug');
 
 const OUTPUT_DIR = path.resolve(__dirname, '..', 'exports');
 const OUTPUT_FILE = path.join(OUTPUT_DIR, 'PACE-QA-Test-Catalog.xlsx');
 
 const NPM_COMMANDS = [
-  { command: 'npm run test:prod-modules:headed', description: 'All production dashboard modules (parallel)' },
-  { command: 'npm run test:prod-modules:each', description: 'Each production module spec individually' },
+  { command: 'npm run test:prod-modules:headed', description: 'All production dashboard modules (parallel, 4 workers)' },
   { command: 'npm run test:control-tower-reports:headed', description: 'All Control Tower report tests (parallel)' },
   { command: 'npm run test:ct:daily-progress:headed', description: 'Control Tower — Daily Progress trend views' },
   { command: 'npm run test:ct:project-libraries:headed', description: 'Control Tower — Project Libraries' },
@@ -68,11 +68,11 @@ function buildControlTowerRows() {
 
   for (const category of categories) {
     const cases = buildReportTestCases(category);
-    const specFile = `tests/Control-tower-reports/${category.slug}.spec.js`;
     const categoryRunCommand = `npm run test:ct:${category.slug}:headed`;
 
     for (const testCase of cases) {
       const isTrend = category.slug === 'daily-progress';
+      const specFile = `tests/Control-tower-reports/reports/${category.slug}-${toSlug(testCase.reportName)}.spec.js`;
       rows.push({
         'Test ID': `CT-${String(counter++).padStart(3, '0')}`,
         Project: 'control-tower-reports',
@@ -88,7 +88,7 @@ function buildControlTowerRows() {
           ? 'Trend view loads; no application errors'
           : 'Report loads; Download CSV if data present (pass if no data)',
         Parallel: 'Yes (default 4 workers)',
-        'Run Command': `${categoryRunCommand} --grep "${testCase.reportName}"`,
+        'Run Command': `npx playwright test --project=control-tower-reports-email "${specFile}"`,
         Tags: '@prod-modules'
       });
     }

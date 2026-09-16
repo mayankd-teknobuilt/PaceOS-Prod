@@ -61,7 +61,6 @@ jobs:
       - name: Run prod modules
         env:
           PLAYWRIGHT_JSON_OUTPUT: report-prod-modules.json
-          PACE_MODULE_EACH: 'true'
           PACE_FAST: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.suite == 'fast' && 'true' || 'false' }}
         run: npx playwright test --project=prod-modules-email --workers=4
       - uses: actions/upload-artifact@v4

@@ -15,20 +15,12 @@ function createProdPlaywrightConfig(baseDir, deviceUse = {}) {
   const jsonReportFile =
     process.env.PLAYWRIGHT_JSON_OUTPUT || 'report.json';
   const baseURL = process.env.BASE_URL;
-  // Parallel per-module specs by default; set PACE_MODULE_EACH=false for single-session run.
-  const runEachModuleSpecs = process.env.PACE_MODULE_EACH !== 'false';
 
   const projectUse = {
     ...deviceUse,
     baseURL,
     storageState: undefined
   };
-
-  const moduleTestIgnore = runEachModuleSpecs
-    ? '**/prod-modules/all-modules.spec.js'
-    : '**/prod-modules/All Modules/**/*.spec.js';
-
-  const moduleParallel = runEachModuleSpecs;
 
   return {
     globalSetup: path.join(baseDir, 'global-setup.js'),
@@ -63,17 +55,15 @@ function createProdPlaywrightConfig(baseDir, deviceUse = {}) {
       {
         name: 'prod-modules-email',
         testMatch: '**/prod-modules/**/*.spec.js',
-        testIgnore: moduleTestIgnore,
         grep: /@prod-modules/,
-        fullyParallel: moduleParallel,
+        fullyParallel: true,
         use: { ...projectUse, loginMethod: 'credentials' }
       },
       {
         name: 'prod-modules-badge',
         testMatch: '**/prod-modules/**/*.spec.js',
-        testIgnore: moduleTestIgnore,
         grep: /@prod-modules/,
-        fullyParallel: moduleParallel,
+        fullyParallel: true,
         use: { ...projectUse, loginMethod: 'badge' }
       },
       {

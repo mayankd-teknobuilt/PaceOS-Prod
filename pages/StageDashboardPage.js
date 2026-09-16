@@ -297,21 +297,6 @@ class StageDashboardPage extends BasePage {
     await this.closeModuleAndReturnToDashboard(result, moduleMeta.tabName);
     return result;
   }
-
-  /**
-   * Login/session is already established by the fixture.
-   * Opens every production dashboard module across all tabs.
-   */
-  async openEveryModule(context, errorMonitor, test) {
-    await this.returnToDashboard();
-    errorMonitor.assertClean();
-
-    for (const moduleMeta of modules) {
-      await test.step(`${moduleMeta.tabName}: ${moduleMeta.moduleName}`, async () => {
-        await this.openAndValidateModule(moduleMeta, context, errorMonitor);
-      });
-    }
-  }
 }
 
 module.exports = StageDashboardPage;
