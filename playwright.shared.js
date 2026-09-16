@@ -12,12 +12,11 @@ function createProdPlaywrightConfig(baseDir, deviceUse = {}) {
 
   const fast = isFastMode();
   const defaultWorkers = Number(process.env.PLAYWRIGHT_WORKERS || process.env.WORKERS) || 4;
-  const ctWorkers = Number(process.env.CT_WORKERS || defaultWorkers);
-  const ciCtWorkers = Number(process.env.CI_CT_WORKERS || ctWorkers);
   const jsonReportFile =
     process.env.PLAYWRIGHT_JSON_OUTPUT || 'report.json';
   const baseURL = process.env.BASE_URL;
-  const runEachModuleSpecs = process.env.PACE_MODULE_EACH === 'true';
+  // Parallel per-module specs by default; set PACE_MODULE_EACH=false for single-session run.
+  const runEachModuleSpecs = process.env.PACE_MODULE_EACH !== 'false';
 
   const projectUse = {
     ...deviceUse,
@@ -29,7 +28,6 @@ function createProdPlaywrightConfig(baseDir, deviceUse = {}) {
     ? '**/prod-modules/all-modules.spec.js'
     : '**/prod-modules/All Modules/**/*.spec.js';
 
-  const moduleWorkers = runEachModuleSpecs ? defaultWorkers : 1;
   const moduleParallel = runEachModuleSpecs;
 
   return {
@@ -68,7 +66,6 @@ function createProdPlaywrightConfig(baseDir, deviceUse = {}) {
         testIgnore: moduleTestIgnore,
         grep: /@prod-modules/,
         fullyParallel: moduleParallel,
-        workers: moduleWorkers,
         use: { ...projectUse, loginMethod: 'credentials' }
       },
       {
@@ -77,7 +74,6 @@ function createProdPlaywrightConfig(baseDir, deviceUse = {}) {
         testIgnore: moduleTestIgnore,
         grep: /@prod-modules/,
         fullyParallel: moduleParallel,
-        workers: moduleWorkers,
         use: { ...projectUse, loginMethod: 'badge' }
       },
       {
@@ -85,7 +81,6 @@ function createProdPlaywrightConfig(baseDir, deviceUse = {}) {
         testMatch: '**/Control-tower-reports/**/*.spec.js',
         grep: /@prod-modules/,
         fullyParallel: true,
-        workers: process.env.CI ? ciCtWorkers : ctWorkers,
         use: {
           ...projectUse,
           actionTimeout: fast ? 20000 : 20000,
@@ -98,7 +93,6 @@ function createProdPlaywrightConfig(baseDir, deviceUse = {}) {
         testMatch: '**/Control-tower-reports/**/*.spec.js',
         grep: /@prod-modules/,
         fullyParallel: true,
-        workers: ctWorkers,
         use: {
           ...projectUse,
           actionTimeout: fast ? 20000 : 20000,

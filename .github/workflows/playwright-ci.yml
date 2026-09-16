@@ -43,7 +43,7 @@ env:
 
 jobs:
   prod-modules:
-    name: Prod Modules
+    name: Prod Modules (4 workers)
     if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.suite == 'all' || github.event.inputs.suite == 'prod-modules' || github.event.inputs.suite == 'fast' }}
     timeout-minutes: 180
     runs-on: ubuntu-latest
@@ -61,8 +61,9 @@ jobs:
       - name: Run prod modules
         env:
           PLAYWRIGHT_JSON_OUTPUT: report-prod-modules.json
+          PACE_MODULE_EACH: 'true'
           PACE_FAST: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.suite == 'fast' && 'true' || 'false' }}
-        run: npx playwright test --project=prod-modules-email
+        run: npx playwright test --project=prod-modules-email --workers=4
       - uses: actions/upload-artifact@v4
         if: always()
         with:

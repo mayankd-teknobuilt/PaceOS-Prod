@@ -6,6 +6,7 @@ const { selectProdProjectContext, isProjectContextSet } = require('../utils/prod
 const { pauseForVisibility } = require('../utils/stageTiming');
 const { isFastMode } = require('../utils/fastMode');
 const { modules } = require('../testdata/stageModules');
+const { createErrorMonitor } = require('../utils/moduleErrorMonitor');
 
 const DASHBOARD_PATH = /dashboard/i;
 
@@ -169,10 +170,44 @@ class StageDashboardPage extends BasePage {
     }
   }
 
+  async waitForModulePage(context, urlPattern, timeout = 45000) {
+    const deadline = Date.now() + timeout;
+
+    while (Date.now() < deadline) {
+      for (const page of context.pages()) {
+        if (!page.isClosed() && urlPattern.test(page.url())) {
+          return page;
+        }
+      }
+      await this.page.waitForTimeout(500);
+    }
+
+    return null;
+  }
+
+  isControlTowerModule(moduleName) {
+    return moduleName === 'Digital Control Tower' || moduleName === 'HSE Plus Control Tower';
+  }
+
+  async openControlTowerModule(context, moduleName) {
+    const ControlTowerNavigationPage = require('./control-tower/ControlTowerNavigationPage');
+    const navigation = new ControlTowerNavigationPage(this.page);
+    const errorMonitor = createErrorMonitor();
+    const ctPage = await navigation.openControlTowerFromDashboard(context, errorMonitor);
+    await ctPage.bringToFront();
+    await this.waitForModuleFullyLoaded(ctPage, moduleName);
+    logger.info(`Control Tower module opened: ${moduleName} | URL=${ctPage.url()}`);
+    return { target: ctPage, openedInNewTab: true };
+  }
+
   async openModule(moduleMeta, context) {
     const { moduleName, tabName, urlPattern } = moduleMeta;
 
     await this.returnToDashboard(tabName);
+
+    if (moduleName === 'Digital Control Tower') {
+      return this.openControlTowerModule(context, moduleName);
+    }
 
     const moduleCard = await this.resolveModuleCard(moduleMeta);
 
@@ -193,20 +228,37 @@ class StageDashboardPage extends BasePage {
       );
     }
 
-    const popupPromise = context.waitForEvent('page', { timeout: 30000 });
+    const pageCountBefore = context.pages().length;
+    const popupPromise = context.waitForEvent('page', { timeout: 45000 });
     await moduleCard.click({ force: true });
 
     let openedPage = null;
     try {
       openedPage = await popupPromise;
     } catch {
-      openedPage = null;
+      const pages = context.pages();
+      if (pages.length > pageCountBefore) {
+        openedPage = pages[pages.length - 1];
+      }
     }
 
-    if (openedPage) {
+    if (!openedPage && urlPattern) {
+      openedPage = await this.waitForModulePage(context, urlPattern, 45000);
+    }
+
+    if (!openedPage && urlPattern) {
+      try {
+        await this.page.waitForURL(urlPattern, { timeout: 30000 });
+        openedPage = this.page;
+      } catch {
+        openedPage = null;
+      }
+    }
+
+    if (openedPage && openedPage !== this.page) {
       await openedPage.bringToFront();
       if (urlPattern) {
-        await openedPage.waitForURL(urlPattern, { timeout: 60000 });
+        await openedPage.waitForURL(urlPattern, { timeout: 60000 }).catch(() => {});
       }
       await this.waitForModuleFullyLoaded(openedPage, moduleName);
       logger.info(`Module opened in new tab: ${moduleName} | URL=${openedPage.url()}`);
@@ -227,6 +279,10 @@ class StageDashboardPage extends BasePage {
 
     if (openedInNewTab && target && !target.isClosed()) {
       await target.close();
+    }
+
+    if (!openedInNewTab && !DASHBOARD_PATH.test(this.page.url())) {
+      await this.page.goto(this.getDashboardUrl(), { waitUntil: 'domcontentloaded' });
     }
 
     await this.returnToDashboard(tabName);

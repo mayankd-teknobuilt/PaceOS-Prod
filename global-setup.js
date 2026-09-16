@@ -51,12 +51,18 @@ async function createAuthState(loginMethod) {
 module.exports = async function globalSetup() {
   fs.mkdirSync(AUTH_DIR, { recursive: true });
 
+  const workers = Number(process.env.PLAYWRIGHT_WORKERS || process.env.WORKERS) || 4;
+  const parallelModules = process.env.PACE_MODULE_EACH !== 'false';
+  console.log(
+    `[global-setup] workers=${workers}, module mode=${parallelModules ? 'parallel (each spec)' : 'single session'}`
+  );
+
   const tasks = [createAuthState('credentials')];
 
   const includeBadge =
     process.env.INCLUDE_BADGE_AUTH === 'true' &&
     process.env.BADGE_NUMBER &&
-    process.env.BADGE_PASSWORD;
+    (process.env.BADGE_PASSWORD || process.env.TEST_PASSWORD);
 
   if (includeBadge) {
     tasks.push(createAuthState('badge'));

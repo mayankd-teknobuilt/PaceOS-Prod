@@ -13,12 +13,13 @@ async function isProjectContextSet(page) {
   const markers = [projectData.subSubModule, projectData.subModule, projectData.Module].filter(Boolean);
   for (const marker of markers) {
     const breadcrumb = page.locator('nav, [role="navigation"], header').filter({ hasText: marker });
-    if (await breadcrumb.first().isVisible({ timeout: 2000 }).catch(() => false)) {
+    if (await breadcrumb.first().isVisible({ timeout: 3000 }).catch(() => false)) {
       return true;
     }
   }
 
-  return true;
+  // Tabs visible on /dashboard means project context selection already completed.
+  return hasTabs;
 }
 
 async function selectProdProjectContext(page) {
