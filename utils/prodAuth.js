@@ -20,11 +20,18 @@ async function dismissCookieBanner(page) {
 }
 
 async function isLoginVisible(page) {
-  return page
+  const emailVisible = await page
     .locator(
       'input[name="emailPhone"], input[name="email"], input[placeholder*="Email / Mobile number" i]'
     )
     .first()
+    .isVisible()
+    .catch(() => false);
+
+  if (emailVisible) return true;
+
+  return page
+    .getByRole('textbox', { name: 'Badge Number' })
     .isVisible()
     .catch(() => false);
 }
@@ -55,10 +62,12 @@ async function performLogin(page, loginMethod = 'credentials') {
 
   if (loginMethod === 'badge') {
     const badgeNumber = process.env.BADGE_NUMBER;
-    const badgePassword = process.env.BADGE_PASSWORD;
+    const badgePassword = process.env.BADGE_PASSWORD || process.env.TEST_PASSWORD;
 
     if (!badgeNumber || !badgePassword) {
-      throw new Error('loginMethod=badge but BADGE_NUMBER/BADGE_PASSWORD is missing in .env.local');
+      throw new Error(
+        'loginMethod=badge but BADGE_NUMBER and password are missing. Set BADGE_NUMBER and BADGE_PASSWORD (or TEST_PASSWORD) in .env.local'
+      );
     }
 
     logger.info('Production login (single session) — via Badge Number');
