@@ -45,6 +45,14 @@ env:
   PROD_BLOCK: ${{ vars.PROD_BLOCK || '2210-Main Piperack (Level - 5)' }}
   CONTROL_TOWER_PORTFOLIO_URL: ${{ vars.CONTROL_TOWER_PORTFOLIO_URL || 'https://us-controltower.pace-os.com/#/portfolio?page=1' }}
   PLAYWRIGHT_WORKERS: ${{ vars.PLAYWRIGHT_WORKERS || '4' }}
+  # Full suite (Control Tower + dev3): push to main/master/cursor/*, schedule, dispatch, or CI_FULL_SUITE=true
+  RUN_FULL_SUITE: >-
+    ${{ github.event_name == 'schedule'
+    || github.event_name == 'workflow_dispatch'
+    || github.ref == 'refs/heads/main'
+    || github.ref == 'refs/heads/master'
+    || startsWith(github.ref, 'refs/heads/cursor/')
+    || vars.CI_FULL_SUITE == 'true' }}
 
 jobs:
   prod-modules:
@@ -54,6 +62,8 @@ jobs:
       || contains(fromJSON('["all","prod-only","prod-modules","fast"]'), github.event.inputs.suite) }}
     timeout-minutes: 180
     runs-on: ubuntu-latest
+    env:
+      PACE_ENV: prod
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -76,14 +86,23 @@ jobs:
           name: test-results-prod-modules-${{ github.run_id }}
           path: test-results/
           retention-days: 14
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report-prod-modules-${{ github.run_id }}
+          path: playwright-report/
+          retention-days: 7
 
   control-tower:
-    name: Prod — Control Tower (1 worker in CI)
+    name: Prod — Control Tower (serial)
     if: >-
-      ${{ github.event_name != 'workflow_dispatch'
-      || contains(fromJSON('["all","prod-only","control-tower","fast"]'), github.event.inputs.suite) }}
+      ${{ (github.event_name != 'workflow_dispatch'
+      || contains(fromJSON('["all","prod-only","control-tower","fast"]'), github.event.inputs.suite))
+      && (env.RUN_FULL_SUITE == 'true' || github.event_name == 'workflow_dispatch') }}
     timeout-minutes: 240
     runs-on: ubuntu-latest
+    env:
+      PACE_ENV: prod
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -96,6 +115,7 @@ jobs:
       - run: node scripts/create-ci-env.js
       - run: node scripts/validate-ci-env.js
       - name: Run Control Tower reports
+        # Keep in sync with utils/ciControlTower.js
         env:
           PLAYWRIGHT_JSON_OUTPUT: report-control-tower.json
           PLAYWRIGHT_WORKERS: 1
@@ -112,11 +132,18 @@ jobs:
           name: test-results-prod-ct-${{ github.run_id }}
           path: test-results/
           retention-days: 14
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report-prod-ct-${{ github.run_id }}
+          path: playwright-report/
+          retention-days: 7
 
   dev3-prod-modules:
     name: Dev3 — Modules (4 workers)
     if: >-
       ${{ vars.ENABLE_DEV3_CI != 'false'
+      && (env.RUN_FULL_SUITE == 'true' || github.event_name == 'workflow_dispatch')
       && (github.event_name != 'workflow_dispatch'
       || contains(fromJSON('["all","dev3-only","dev3-modules"]'), github.event.inputs.suite)) }}
     timeout-minutes: 180
@@ -148,9 +175,10 @@ jobs:
           retention-days: 14
 
   dev3-control-tower:
-    name: Dev3 — Control Tower (1 worker)
+    name: Dev3 — Control Tower (serial)
     if: >-
       ${{ vars.ENABLE_DEV3_CI != 'false'
+      && (env.RUN_FULL_SUITE == 'true' || github.event_name == 'workflow_dispatch')
       && (github.event_name != 'workflow_dispatch'
       || contains(fromJSON('["all","dev3-only","dev3-control-tower"]'), github.event.inputs.suite)) }}
     timeout-minutes: 240
@@ -179,6 +207,7 @@ jobs:
           CASE_ATTEMPT_MS: 90000
           SLOW_CASE_TIMEOUT_MS: 300000
           SLOW_CASE_ATTEMPT_MS: 150000
+          DOWNLOAD_TIMEOUT_MS: 45000
         run: npx playwright test --project=control-tower-reports-email --workers=1
       - uses: actions/upload-artifact@v4
         if: always()
@@ -186,6 +215,12 @@ jobs:
           name: test-results-dev3-ct-${{ github.run_id }}
           path: test-results/
           retention-days: 14
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report-dev3-ct-${{ github.run_id }}
+          path: playwright-report/
+          retention-days: 7
 
   report:
     name: Report and notify

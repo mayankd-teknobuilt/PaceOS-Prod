@@ -179,16 +179,37 @@ To disable Playwright env filtering (still uses `test.skip` at runtime): `PACE_E
 GitHub Actions: `.github/workflows/playwright-ci.yml`  
 Jenkins: `Jenkinsfile`
 
+### Design (best practice)
+
+| Layer | Modules (`prod-modules-email`) | Control Tower (`control-tower-reports-email`) |
+|-------|----------------------------------|-----------------------------------------------|
+| **Local** | Parallel (default 4 workers) | Parallel optional (`--workers=4` in npm scripts) |
+| **CI** | Parallel (4 workers), one auth per worker | **Serial**: 1 worker, `fullyParallel: false`, shared CT tab per run |
+| **Why** | Specs are isolated per module | Reports share filters/tabs; parallel CT causes flaky retries and session teardown |
+
+CI defaults for Control Tower live in `utils/ciControlTower.js` (timeouts, `PLAYWRIGHT_WORKERS=1`). Local `npm run test:ci:*:control-tower` uses the same values.
+
+### When jobs run (GitHub Actions)
+
+| Trigger | Prod modules | Prod / dev3 Control Tower & dev3 modules |
+|---------|--------------|------------------------------------------|
+| **Pull request** | Yes | Skipped (fast feedback) unless repo variable `CI_FULL_SUITE=true` |
+| **Push** to `main`, `master`, `cursor/**` | Yes | Yes (full suite) |
+| **Schedule** (daily 8:00 AM IST) | Yes | Yes |
+| **Workflow dispatch** | Per selected suite | Per selected suite |
+
+Set repository variable **`CI_FULL_SUITE=true`** to run the full suite on every PR.
+
 ### Environments in CI
 
 Tests run in **separate parallel jobs** per environment (never one mixed `PACE_ENV`):
 
 | Job | `PACE_ENV` | Workers (modules / CT) |
 |-----|------------|-------------------------|
-| Prod modules | `prod` (default) | 4 / — |
-| Prod Control Tower | `prod` | — / 4 |
+| Prod modules | `prod` | 4 / — |
+| Prod Control Tower | `prod` | — / **1 (serial)** |
 | Dev3 modules | `dev3` | 4 / — |
-| Dev3 Control Tower | `dev3` | — / 1 |
+| Dev3 Control Tower | `dev3` | — / **1 (serial)** |
 
 Profile URLs and project context come from `config/environments.js` after `PACE_ENV` is set.
 
@@ -199,9 +220,14 @@ Profile URLs and project context come from `config/environments.js` after `PACE_
 | `TEST_EMAIL`, `TEST_PASSWORD` | Prod login (required) |
 | `DEV3_TEST_EMAIL`, `DEV3_TEST_PASSWORD` | Dev3 login (optional; defaults to prod creds if same user works on dev3) |
 | `ENABLE_DEV3_CI` | Set to `false` to skip dev3 jobs |
+| `CI_FULL_SUITE` | Set to `true` to run Control Tower + dev3 on pull requests |
 | `SMTP_PASSWORD` | Email report (optional) |
 
+Install: `npm ci --ignore-scripts` then `npx playwright install --with-deps chromium` (Playwright ≥ 1.61 for Ubuntu 26.04 runners).
+
 Manual run: **Actions → Playwright CI → Run workflow** — suite `all` runs prod + dev3. Use `prod-only`, `dev3-only`, or individual suite names to narrow scope.
+
+Failed jobs upload **`test-results/`** and **`playwright-report/`** (HTML) artifacts.
 
 ### Jenkins
 

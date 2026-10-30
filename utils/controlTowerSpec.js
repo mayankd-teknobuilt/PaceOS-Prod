@@ -130,6 +130,10 @@ function registerSingleReportTest(test, category, reportName) {
   }
 
   test.describe(titlePrefix, () => {
+    if (process.env.CI === 'true') {
+      test.describe.configure({ mode: 'serial' });
+    }
+
     test('opens and loads without application errors', async ({ controlTower }) => {
       test.setTimeout(getCaseTimeoutMs(reportName));
       const failure = await runReportWithRetry(testCase, {

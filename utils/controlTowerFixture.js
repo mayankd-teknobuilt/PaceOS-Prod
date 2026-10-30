@@ -1,6 +1,8 @@
 const path = require('path');
 const { loadProdEnv } = require('./loadEnv');
+const { applyControlTowerCiDefaults } = require('./ciControlTower');
 loadProdEnv(path.resolve(__dirname, '..'));
+applyControlTowerCiDefaults();
 
 const { test: prodTest, expect } = require('./prodModuleFixture');
 const ControlTowerNavigationPage = require('../pages/control-tower/ControlTowerNavigationPage');
