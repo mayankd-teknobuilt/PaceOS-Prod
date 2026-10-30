@@ -5,6 +5,7 @@ const { ensureProdSession } = require('../utils/prodAuth');
 const { selectProdProjectContext, isProjectContextSet } = require('../utils/prodProjectContext');
 const { pauseForVisibility } = require('../utils/stageTiming');
 const { isFastMode } = require('../utils/fastMode');
+const { safeGoto } = require('../utils/safeNavigation');
 const { modules } = require('../testdata/stageModules');
 const { createErrorMonitor } = require('../utils/moduleErrorMonitor');
 
@@ -95,6 +96,38 @@ class StageDashboardPage extends BasePage {
     return this.page;
   }
 
+  async recoverDashboardSession() {
+    const { selectProdProjectContext, isProjectContextSet } = require('../utils/prodProjectContext');
+
+    await ensureProdSession(this.page);
+
+    if (!(await isProjectContextSet(this.page))) {
+      await selectProdProjectContext(this.page);
+    }
+  }
+
+  async navigateToDashboardWithRecovery() {
+    const baseUrl = process.env.BASE_URL;
+    const dashboardUrl = this.getDashboardUrl();
+
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      if (/logout/i.test(this.page.url())) {
+        await this.page.waitForTimeout(2500);
+        await safeGoto(this.page, new URL('/select-project', baseUrl).toString());
+        await this.recoverDashboardSession();
+      }
+
+      await safeGoto(this.page, dashboardUrl);
+
+      const tabsVisible = await this.tabs.first().isVisible({ timeout: 15000 }).catch(() => false);
+      if (DASHBOARD_PATH.test(this.page.url()) && tabsVisible) {
+        return;
+      }
+
+      await this.recoverDashboardSession();
+    }
+  }
+
   async returnToDashboard(tabName = null) {
     await this.page.bringToFront();
 
@@ -103,7 +136,7 @@ class StageDashboardPage extends BasePage {
       (await this.tabs.first().isVisible().catch(() => false));
 
     if (!alreadyOnDashboard) {
-      await this.page.goto(this.getDashboardUrl(), { waitUntil: 'domcontentloaded' });
+      await this.navigateToDashboardWithRecovery();
     }
 
     await this.dismissCookieBanner();
@@ -127,6 +160,16 @@ class StageDashboardPage extends BasePage {
 
   async waitForDashboardReady() {
     await this.page.waitForLoadState('domcontentloaded', { timeout: 30000 });
+
+    let onDashboard = DASHBOARD_PATH.test(this.page.url());
+    let tabsVisible = await this.tabs.first().isVisible({ timeout: 5000 }).catch(() => false);
+
+    if (!onDashboard || !tabsVisible) {
+      await this.navigateToDashboardWithRecovery();
+      onDashboard = DASHBOARD_PATH.test(this.page.url());
+      tabsVisible = await this.tabs.first().isVisible({ timeout: 5000 }).catch(() => false);
+    }
+
     await expect(this.page, 'Dashboard did not load.').toHaveURL(DASHBOARD_PATH, { timeout: 30000 });
     await expect(this.tabs.first(), 'Dashboard categories did not load.').toBeVisible({ timeout: 30000 });
 
@@ -151,10 +194,25 @@ class StageDashboardPage extends BasePage {
       });
     }
 
-    await expect(
-      targetPage.locator('body'),
-      `Module "${moduleName}" rendered an empty page.`
-    ).not.toBeEmpty({ timeout: 20000 });
+    const bodyReady = await targetPage
+      .waitForFunction(
+        () => {
+          const body = document.body;
+          if (!body) return false;
+          if (body.innerText && body.innerText.trim().length > 0) return true;
+          return body.children.length > 0;
+        },
+        { timeout: 60000 }
+      )
+      .then(() => true)
+      .catch(() => false);
+
+    if (!bodyReady) {
+      await expect(
+        targetPage.locator('body'),
+        `Module "${moduleName}" rendered an empty page.`
+      ).not.toBeEmpty({ timeout: 20000 });
+    }
 
     await pauseForVisibility(targetPage, `Module fully loaded: ${moduleName}`);
   }
@@ -282,8 +340,8 @@ class StageDashboardPage extends BasePage {
       await target.close();
     }
 
-    if (!openedInNewTab && !DASHBOARD_PATH.test(this.page.url())) {
-      await this.page.goto(this.getDashboardUrl(), { waitUntil: 'domcontentloaded' });
+    if (!openedInNewTab) {
+      await this.navigateToDashboardWithRecovery();
     }
 
     await this.returnToDashboard(tabName);

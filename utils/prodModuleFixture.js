@@ -1,6 +1,8 @@
 const path = require('path');
 const { loadProdEnv } = require('./loadEnv');
+const { applyModulesCiDefaults } = require('./ciModules');
 loadProdEnv(path.resolve(__dirname, '..'));
+applyModulesCiDefaults();
 
 const { test: base, expect } = require('@playwright/test');
 const StageDashboardPage = require('../pages/StageDashboardPage');
@@ -27,10 +29,13 @@ const test = base.extend({
         throw new Error('BASE_URL is missing. Check PACE-QA-Automation-prod/.env.local');
       }
 
-      // After a worker process restart, Playwright may assign workerIndex > 0 even with --workers=1.
+      // After a worker process restart, Playwright may assign workerIndex > configured workers.
       // Reuse worker-0 auth so the rest of the CT suite does not re-login and hit SSO logout races.
+      const configuredWorkers = Math.max(1, workerInfo.config.workers || 1);
       const workerIndex =
-        workerInfo.config.workers === 1 ? 0 : workerInfo.workerIndex;
+        workerInfo.config.workers === 1
+          ? 0
+          : workerInfo.workerIndex % configuredWorkers;
       if (!authStorageExists(loginMethod, workerIndex)) {
         throw new Error(
           `Missing auth storage for ${loginMethod}. Run tests once so global-setup creates .auth/${process.env.PACE_ENV || 'prod'}/ credentials.`

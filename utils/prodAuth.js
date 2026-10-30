@@ -1,6 +1,7 @@
 const LoginPage = require('../pages/LoginPage');
 const { getValidUser } = require('../testdata/loginData');
 const { AUTHENTICATED_URL, isLoginFormVisible, waitForAuthenticated } = require('./loginSession');
+const { safeGoto } = require('./safeNavigation');
 const logger = require('./logger');
 
 async function dismissCookieBanner(page) {
@@ -67,7 +68,7 @@ async function ensureProdSession(page, loginMethod = 'credentials') {
   if (await hasValidSession(page)) return;
 
   for (const route of ['/dashboard', '/select-project', '/my-work']) {
-    await page.goto(new URL(route, baseUrl).toString(), { waitUntil: 'domcontentloaded' });
+    await safeGoto(page, new URL(route, baseUrl).toString());
     await dismissCookieBanner(page);
     if (await hasValidSession(page)) return;
     if (await isLoginVisible(page)) {

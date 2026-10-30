@@ -140,7 +140,7 @@ jobs:
           retention-days: 7
 
   dev3-prod-modules:
-    name: Dev3 — Modules (4 workers)
+    name: Dev3 — Modules (serial)
     if: >-
       ${{ vars.ENABLE_DEV3_CI != 'false'
       && (env.RUN_FULL_SUITE == 'true' || github.event_name == 'workflow_dispatch')
@@ -150,6 +150,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       PACE_ENV: dev3
+      PLAYWRIGHT_WORKERS: '1'
       TEST_EMAIL: ${{ secrets.DEV3_TEST_EMAIL || vars.DEV3_TEST_EMAIL || secrets.TEST_EMAIL || vars.TEST_EMAIL }}
       TEST_PASSWORD: ${{ secrets.DEV3_TEST_PASSWORD || vars.DEV3_TEST_PASSWORD || secrets.TEST_PASSWORD || vars.TEST_PASSWORD }}
     steps:
@@ -166,7 +167,8 @@ jobs:
       - name: Run dev3 modules
         env:
           PLAYWRIGHT_JSON_OUTPUT: report-dev3-modules.json
-        run: npx playwright test --project=prod-modules-email --workers=4
+          PLAYWRIGHT_WORKERS: '1'
+        run: npx playwright test --project=prod-modules-email --workers=1
       - uses: actions/upload-artifact@v4
         if: always()
         with:

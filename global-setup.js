@@ -11,9 +11,11 @@ const {
 } = require('./utils/authStorage');
 const { getEnvironmentProfile, getPaceEnvKey } = require('./utils/paceEnv');
 const { applyControlTowerCiDefaults } = require('./utils/ciControlTower');
+const { applyModulesCiDefaults } = require('./utils/ciModules');
 
 loadProdEnv();
 applyControlTowerCiDefaults();
+applyModulesCiDefaults();
 
 function launchHeadless() {
   if (process.env.PW_HEADED === 'true') return false;
@@ -78,13 +80,16 @@ async function createAuthState(loginMethod) {
 module.exports = async function globalSetup() {
   loadProdEnv();
   applyControlTowerCiDefaults();
+  applyModulesCiDefaults();
 
   fs.mkdirSync(getAuthDir(), { recursive: true });
 
   const workers = Number(process.env.PLAYWRIGHT_WORKERS || process.env.WORKERS) || 4;
   const profile = getEnvironmentProfile();
+  const moduleMode =
+    workers === 1 ? 'serial (each spec)' : 'parallel (each spec)';
   console.log(
-    `[global-setup] env=${getPaceEnvKey()} (${profile.label}), workers=${workers}, module mode=parallel (each spec)`
+    `[global-setup] env=${getPaceEnvKey()} (${profile.label}), workers=${workers}, module mode=${moduleMode}`
   );
   console.log(`[global-setup] BASE_URL=${process.env.BASE_URL}`);
 
@@ -103,9 +108,10 @@ module.exports = async function globalSetup() {
 
   await Promise.all(tasks);
 
-  seedWorkerAuthStores(workers, ['credentials']);
+  const seedCount = workers + 4;
+  seedWorkerAuthStores(seedCount, ['credentials']);
   if (includeBadge) {
-    seedWorkerAuthStores(workers, ['badge']);
+    seedWorkerAuthStores(seedCount, ['badge']);
   }
-  console.log(`[global-setup] Seeded worker auth files 0..${workers - 1}`);
+  console.log(`[global-setup] Seeded worker auth files 0..${seedCount - 1}`);
 };

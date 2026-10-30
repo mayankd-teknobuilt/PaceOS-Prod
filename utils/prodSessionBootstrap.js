@@ -10,6 +10,7 @@ const {
 const { selectProdProjectContext, isProjectContextSet } = require('./prodProjectContext');
 const { withLoginLock } = require('./authLock');
 const { getAuthStoragePath } = require('./authStorage');
+const { safeGoto } = require('./safeNavigation');
 const logger = require('./logger');
 
 async function assertAuthenticatedDashboard(page, workerLabel = 'worker') {
@@ -30,7 +31,7 @@ async function tryRestoreDashboardSession(page, baseUrl, workerLabel) {
   const dashboard = new StageDashboardPage(page);
 
   for (const route of ['/dashboard', '/my-work']) {
-    await page.goto(new URL(route, baseUrl).toString(), { waitUntil: 'domcontentloaded' });
+    await safeGoto(page, new URL(route, baseUrl).toString());
     await dismissCookieBanner(page);
 
     if (await isLoginVisible(page)) {
