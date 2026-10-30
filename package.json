@@ -68,7 +68,7 @@
     "discover:control-tower-reports": "node scripts/discover-ct-reports.js",
     "discover:dev3-control-tower-reports": "cross-env PACE_ENV=dev3 node scripts/discover-ct-reports.js",
     "discover:prod-project-context": "node scripts/discover-prod-project-context.js",
-    "postinstall": "npx playwright install chromium",
+    "postinstall": "node -e \"if (!process.env.CI) require('child_process').execSync('npx playwright install chromium', {stdio:'inherit'})\"",
     "generate:test-catalog": "node scripts/generate-test-catalog-excel.js",
     "report:open": "npx playwright show-report ./playwright-report",
     "allure:report": "allure serve allure-results"
@@ -78,12 +78,12 @@
   "license": "ISC",
   "type": "commonjs",
   "devDependencies": {
-    "@playwright/test": "^1.60.0",
+    "@playwright/test": "^1.64.1",
     "@types/node": "^25.3.5",
     "allure-commandline": "^2.37.0",
     "allure-playwright": "^3.10.1",
-    "dotenv": "^16.6.1",
     "cross-env": "^7.0.3",
+    "dotenv": "^16.6.1",
     "nodemailer": "^6.10.1",
     "xlsx": "^0.18.5"
   },
