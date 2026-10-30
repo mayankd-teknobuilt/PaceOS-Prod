@@ -1,11 +1,33 @@
+const { buildReportTestCases } = require('./controlTowerParallel');
+const { isCategoryEnabledForEnv, getCategoryEnvScopeTag } = require('./paceEnv');
 const {
-  buildReportTestCases,
-  buildAllReportTestCases,
-  splitIntoWorkerBatches
-} = require('./controlTowerParallel');
+  REPORT_ATTEMPTS,
+  CASE_TIMEOUT_MS,
+  attemptBudgetMs,
+  remainingMs
+} = require('./testTiming');
 const logger = require('./logger');
 
-const REPORT_ATTEMPTS = 2;
+async function runWithAttemptBudget(fn, deadlineMs, label) {
+  const budgetMs = attemptBudgetMs(deadlineMs);
+  if (budgetMs <= 0) {
+    throw new Error(`${label} skipped — case time budget exhausted.`);
+  }
+
+  let timeoutId;
+  try {
+    return await Promise.race([
+      fn(),
+      new Promise((_, reject) => {
+        timeoutId = setTimeout(() => {
+          reject(new Error(`${label} timed out after ${budgetMs}ms`));
+        }, budgetMs);
+      })
+    ]);
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
 
 async function runSetupSteps(reportsPage, setupSteps, errorMonitor) {
   for (const step of setupSteps) {
@@ -35,20 +57,25 @@ async function runReportBody(testCase, { navigation, errorMonitor, test }) {
   await reportsPage.assertStepClean(errorMonitor);
 }
 
-/**
- * Run one report with a single retry. On final failure, log a failed step in the
- * report but return the error so the batch can continue.
- */
 async function runReportWithRetry(testCase, { navigation, errorMonitor, test }) {
   let lastError = null;
+  const deadlineMs = Date.now() + CASE_TIMEOUT_MS;
 
   for (let attempt = 1; attempt <= REPORT_ATTEMPTS; attempt++) {
+    if (remainingMs(deadlineMs) <= 0) {
+      break;
+    }
+
     const stepLabel =
       attempt === 1 ? testCase.reportName : `${testCase.reportName} (retry)`;
 
     try {
       await test.step(stepLabel, async () => {
-        await runReportBody(testCase, { navigation, errorMonitor, test });
+        await runWithAttemptBudget(
+          () => runReportBody(testCase, { navigation, errorMonitor, test }),
+          deadlineMs,
+          stepLabel
+        );
       });
       return null;
     } catch (error) {
@@ -57,7 +84,7 @@ async function runReportWithRetry(testCase, { navigation, errorMonitor, test }) 
         `Report "${testCase.reportName}" attempt ${attempt}/${REPORT_ATTEMPTS} failed: ${error.message}`
       );
 
-      if (attempt < REPORT_ATTEMPTS) {
+      if (attempt < REPORT_ATTEMPTS && remainingMs(deadlineMs) > 0) {
         await navigation.reportsPage.ensureControlTowerTabActive();
         await navigation.reportsPage.waitForReportSettle({ quick: true });
       }
@@ -77,69 +104,15 @@ async function runReportWithRetry(testCase, { navigation, errorMonitor, test }) 
   };
 }
 
-async function runReportsBatch(testCases, { controlTower, test }) {
-  const failures = [];
-
-  for (const testCase of testCases) {
-    const failure = await runReportWithRetry(testCase, {
-      navigation: controlTower.navigation,
-      errorMonitor: controlTower.errorMonitor,
-      test
-    });
-
-    if (failure) {
-      failures.push(failure);
-    }
-  }
-
-  if (failures.length) {
-    const summary = failures
-      .map(
-        failure =>
-          `  - [${failure.categoryName}] ${failure.reportName}: ${failure.error.message}`
-      )
-      .join('\n');
-
-    throw new Error(`${failures.length} report(s) failed after retry:\n${summary}`);
-  }
-}
-
-/**
- * Run every report in a category inside an already-open Control Tower session.
- */
-async function runCategoryInSession(category, { controlTower, test }) {
-  if (category.prodEnabled === false) {
-    return;
-  }
-
-  const cases = buildReportTestCases(category);
-
-  await test.step(category.name, async () => {
-    await runReportsBatch(cases, { controlTower, test });
-  });
-}
-
-/**
- * Run all enabled categories in one Control Tower session (login + CT open once).
- */
-async function runAllReportsInSession({ controlTower, test }) {
-  const { categories } = require('../testdata/control-tower');
-
-  for (const category of categories) {
-    await runCategoryInSession(category, { controlTower, test });
-  }
-}
-
-/**
- * One Playwright test per report/trend case (parallel-friendly).
- */
 function registerSingleReportTest(test, category, reportName) {
   const cases = buildReportTestCases(category);
   const testCase = cases.find(item => item.reportName === reportName);
+  const scopeTag = getCategoryEnvScopeTag(category);
+  const titlePrefix = `${scopeTag} @prod-modules Control Tower - ${category.name} - ${reportName}`;
 
-  if (category.prodEnabled === false) {
-    test.describe.skip(`@prod-modules Control Tower - ${category.name} - ${reportName}`, () => {
-      test('not available on production Control Tower', () => {});
+  if (!isCategoryEnabledForEnv(category)) {
+    test.describe(titlePrefix, () => {
+      test.skip(true, 'Report category not configured for PACE_ENV');
     });
     return;
   }
@@ -148,9 +121,9 @@ function registerSingleReportTest(test, category, reportName) {
     throw new Error(`Report "${reportName}" not found in category "${category.slug}"`);
   }
 
-  test.describe(`@prod-modules Control Tower - ${category.name} - ${reportName}`, () => {
+  test.describe(titlePrefix, () => {
     test('opens and loads without application errors', async ({ controlTower }) => {
-      test.setTimeout(300000);
+      test.setTimeout(CASE_TIMEOUT_MS);
       const failure = await runReportWithRetry(testCase, {
         navigation: controlTower.navigation,
         errorMonitor: controlTower.errorMonitor,
@@ -164,63 +137,8 @@ function registerSingleReportTest(test, category, reportName) {
   });
 }
 
-/**
- * One test per category — all reports sequential, CT tab stays open between reports.
- * @deprecated Prefer generated per-report specs under tests/Control-tower-reports/reports/.
- */
-function registerCategorySessionTest(test, category) {
-  if (category.prodEnabled === false) {
-    test.describe.skip(`@prod-modules Control Tower - ${category.name}`, () => {
-      test('not available on production Control Tower', () => {});
-    });
-    return;
-  }
-
-  const cases = buildReportTestCases(category);
-
-  test.describe.configure({ mode: 'serial' });
-
-  test.describe(`@prod-modules Control Tower - ${category.name}`, () => {
-    test(`navigate all ${category.name} reports`, async ({ controlTower }) => {
-      test.setTimeout(900000);
-
-      await test.step(category.name, async () => {
-        await runReportsBatch(cases, { controlTower, test });
-      });
-    });
-  });
-}
-
-/**
- * Split all reports across parallel workers. Each worker logs in once and opens
- * Control Tower once, then runs its batch with per-report retry.
- */
-function registerAllReportsSessionTest(test, { workers = 4 } = {}) {
-  const allCases = buildAllReportTestCases();
-  const batches = splitIntoWorkerBatches(allCases, workers);
-
-  test.describe.configure({ mode: 'parallel' });
-
-  test.describe('@prod-modules Control Tower Reports', () => {
-    batches.forEach((batch, index) => {
-      test(`batch ${index + 1} — ${batch.length} reports`, async ({ controlTower }) => {
-        test.setTimeout(900000);
-        await runReportsBatch(batch, { controlTower, test });
-      });
-    });
-  });
-}
-
 module.exports = {
-  runSetupSteps,
-  runReportBody,
   runReportWithRetry,
-  runReportsBatch,
-  runCategoryInSession,
-  runAllReportsInSession,
-  registerCategorySessionTest,
   registerSingleReportTest,
-  registerAllReportsSessionTest,
-  buildReportTestCases,
-  buildAllReportTestCases
+  buildReportTestCases
 };

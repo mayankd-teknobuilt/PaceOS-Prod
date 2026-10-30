@@ -1,8 +1,6 @@
 const path = require('path');
-require('dotenv').config({
-  path: path.resolve(__dirname, '..', '.env.local'),
-  override: true
-});
+const { loadProdEnv } = require('./loadEnv');
+loadProdEnv(path.resolve(__dirname, '..'));
 
 const { test: prodTest, expect } = require('./prodModuleFixture');
 const ControlTowerNavigationPage = require('../pages/control-tower/ControlTowerNavigationPage');

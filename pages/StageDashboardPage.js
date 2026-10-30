@@ -205,7 +205,8 @@ class StageDashboardPage extends BasePage {
 
     await this.returnToDashboard(tabName);
 
-    if (moduleName === 'Digital Control Tower') {
+    const { getControlTowerModuleName } = require('../utils/controlTowerEnv');
+    if (moduleName === 'Digital Control Tower' || moduleName === getControlTowerModuleName()) {
       return this.openControlTowerModule(context, moduleName);
     }
 
@@ -286,16 +287,6 @@ class StageDashboardPage extends BasePage {
     }
 
     await this.returnToDashboard(tabName);
-  }
-
-  async openAndValidateModule(moduleMeta, context, errorMonitor) {
-    errorMonitor.reset();
-    const result = await this.openModule(moduleMeta, context);
-    errorMonitor.attach(result.target);
-    await expect(result.target.locator('body')).not.toBeEmpty({ timeout: 20000 });
-    errorMonitor.assertClean();
-    await this.closeModuleAndReturnToDashboard(result, moduleMeta.tabName);
-    return result;
   }
 }
 

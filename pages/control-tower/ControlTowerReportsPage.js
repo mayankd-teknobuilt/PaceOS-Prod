@@ -3,7 +3,9 @@ const BasePage = require('../BasePage');
 const logger = require('../../utils/logger');
 const { pauseForVisibility } = require('../../utils/stageTiming');
 const { isFastMode } = require('../../utils/fastMode');
+const { DOWNLOAD_TIMEOUT_MS, CT_VIEW_LOAD_MS } = require('../../utils/testTiming');
 const { CONTROL_TOWER_URL, portfolioUrl } = require('../../testdata/control-tower/shared');
+const { getPaceEnvKey } = require('../../utils/paceEnv');
 
 const VISIBLE_ERROR_SELECTORS = [
   'text=/\\b(400|401|403|404|500|502|503)\\b/i',
@@ -96,14 +98,27 @@ class ControlTowerReportsPage extends BasePage {
 
   async waitForPortfolioReady() {
     await this.ensureControlTowerTabActive();
-    await expect(
-      this.reportsPage.getByRole('tab', { name: 'Project Progress' }),
-      'Control Tower portfolio tabs were not visible.'
-    ).toBeVisible({ timeout: 60000 });
-    await expect(
-      this.reportsPage.getByRole('button', { name: 'Utilization Trend' }),
-      'Project Progress trend actions were not visible on Control Tower.'
-    ).toBeVisible({ timeout: 30000 });
+
+    if (getPaceEnvKey() === 'dev3') {
+      await expect(
+        this.reportsPage.getByRole('tab', { name: 'Project Libraries' }),
+        'Dev3 Control Tower portfolio tabs were not visible.'
+      ).toBeVisible({ timeout: 60000 });
+      await expect(
+        this.reportsPage.getByText(/Intelligence/i).first(),
+        'Dev3 Control Tower Intelligence panel was not visible.'
+      ).toBeVisible({ timeout: 30000 });
+    } else {
+      await expect(
+        this.reportsPage.getByRole('tab', { name: 'Project Progress' }),
+        'Control Tower portfolio tabs were not visible.'
+      ).toBeVisible({ timeout: 60000 });
+      await expect(
+        this.reportsPage.getByRole('button', { name: 'Utilization Trend' }),
+        'Project Progress trend actions were not visible on Control Tower.'
+      ).toBeVisible({ timeout: 30000 });
+    }
+
     await this.waitForReportSettle();
   }
 
@@ -179,17 +194,14 @@ class ControlTowerReportsPage extends BasePage {
   }
 
   async waitForViewLoaded(viewName) {
-    await this.reportsPage.waitForLoadState('domcontentloaded', { timeout: 60000 });
+    await this.reportsPage.waitForLoadState('domcontentloaded', { timeout: CT_VIEW_LOAD_MS });
 
     if (await this.loadingIndicator.count()) {
-      await this.loadingIndicator.first().waitFor({ state: 'hidden', timeout: 60000 }).catch(() => {});
+      await this.loadingIndicator.first().waitFor({ state: 'hidden', timeout: CT_VIEW_LOAD_MS }).catch(() => {});
     }
 
     if (!isFastMode()) {
-      await this.reportsPage.waitForLoadState('load', { timeout: 60000 }).catch(() => {});
-      await this.reportsPage.waitForLoadState('networkidle', { timeout: 60000 }).catch(() => {
-        logger.info(`networkidle timeout for "${viewName}"; continuing after load event.`);
-      });
+      await this.reportsPage.waitForLoadState('load', { timeout: CT_VIEW_LOAD_MS }).catch(() => {});
     }
 
     await this.waitForReportSettle();
@@ -243,14 +255,12 @@ class ControlTowerReportsPage extends BasePage {
 
     logger.info(`Report "${reportName}" has data — verifying CSV download.`);
 
-    const downloadTimeout =
-      Number(process.env.DOWNLOAD_TIMEOUT_MS) || (process.env.CI ? 120000 : 30000);
     let lastError;
 
     for (let attempt = 1; attempt <= 2; attempt++) {
       try {
         const downloadPromise = this.reportsPage.waitForEvent('download', {
-          timeout: downloadTimeout
+          timeout: DOWNLOAD_TIMEOUT_MS
         });
         await downloadBtn.click();
         const download = await downloadPromise;
@@ -300,8 +310,11 @@ class ControlTowerReportsPage extends BasePage {
   async openTab(label, options = {}) {
     const tab = this.tabLocator(label);
     await expect(tab, `Tab "${label}" was not found.`).toBeVisible({ timeout: 20000 });
-    await tab.click();
-    await expect(tab).toHaveAttribute('aria-selected', 'true', { timeout: 10000 });
+    const selected = (await tab.getAttribute('aria-selected')) === 'true';
+    if (!selected) {
+      await tab.click();
+      await expect(tab).toHaveAttribute('aria-selected', 'true', { timeout: 10000 });
+    }
 
     if (options.setup) {
       await this.waitForSetupStep(`Opened tab: ${label}`);
@@ -331,7 +344,7 @@ class ControlTowerReportsPage extends BasePage {
       await option.scrollIntoViewIfNeeded();
       await option.click();
       await this.dismissOpenMenus();
-    }).toPass({ timeout: 45000 });
+    }).toPass({ timeout: CT_VIEW_LOAD_MS });
 
     if (options.setup) {
       await this.waitForSetupStep(step.name);
@@ -356,57 +369,6 @@ class ControlTowerReportsPage extends BasePage {
     if (step.type === 'report') {
       await this.selectReport(step, options);
     }
-  }
-
-  async openTrendViews(trendLabels, test, errorMonitor) {
-    await test.step('Trend Views', async () => {
-      for (const label of trendLabels) {
-        await test.step(`Trend: ${label}`, async () => {
-          errorMonitor.reset();
-          await this.clickButton(label, label);
-          await this.assertStepClean(errorMonitor);
-        });
-      }
-    });
-  }
-
-  async openCategory(category, test, errorMonitor) {
-    if (category.prepareTrendViews?.length) {
-      await this.openTrendViews(category.prepareTrendViews, test, errorMonitor);
-    }
-
-    if (category.entry?.length) {
-      await test.step(`Section: ${category.name}`, async () => {
-        for (const entry of category.entry) {
-          if (entry.type === 'tab') {
-            errorMonitor.reset();
-            await this.openTab(entry.label);
-            await this.assertStepClean(errorMonitor);
-          }
-        }
-
-        for (const step of category.steps) {
-          await test.step(step.name, async () => {
-            errorMonitor.reset();
-            await this.executeStep(step);
-            await this.assertDownloadBehavior(step.name);
-            await this.assertStepClean(errorMonitor);
-          });
-        }
-      });
-      return;
-    }
-
-    // Daily progress — trend buttons only
-    await test.step(`Section: ${category.name}`, async () => {
-      for (const step of category.steps) {
-        await test.step(step.name, async () => {
-          errorMonitor.reset();
-          await this.executeStep(step);
-          await this.assertStepClean(errorMonitor);
-        });
-      }
-    });
   }
 }
 

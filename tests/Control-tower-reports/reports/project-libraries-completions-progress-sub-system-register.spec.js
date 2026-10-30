@@ -2,4 +2,4 @@ const { test } = require('../../../utils/controlTowerFixture');
 const { registerSingleReportTest } = require('../../../utils/controlTowerSpec');
 const category = require('../../../testdata/control-tower/project-libraries');
 
-registerSingleReportTest(test, category, "IWP Readiness Sub-System");
+registerSingleReportTest(test, category, "Completions Progress Sub-System Register");

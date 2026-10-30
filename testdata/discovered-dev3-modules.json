@@ -1,0 +1,211 @@
+﻿[discover-modules] PACE_ENV=dev3 (Dev Company 3)
+2026-10-30T09:09:03.231Z [info] Logging in as: admin@teknobuilt.com
+2026-10-30T09:09:03.232Z [info] Navigating to pace-os home page
+2026-10-30T09:09:04.083Z [info] Clicking Login to open sign-in form
+2026-10-30T09:09:04.837Z [info] Login form is open
+2026-10-30T09:09:06.766Z [info] Landed on: https://dev-company3.pace-os.com/select-project
+2026-10-30T09:09:06.767Z [info] Selecting project: Al Shomou Athel Project
+2026-10-30T09:09:06.767Z [info] Selecting project: Al Shomou Athel Project (ASP)
+2026-10-30T09:09:07.361Z [info] Selecting phase: On Plot
+2026-10-30T09:09:07.361Z [info] Selecting module: On Plot
+2026-10-30T09:09:07.903Z [info] Selecting section: Common
+2026-10-30T09:09:07.904Z [info] Selecting sub-module: Common
+2026-10-30T09:09:08.428Z [info] Selecting block: Plot Preparation Area
+2026-10-30T09:09:08.428Z [info] Selecting sub-sub-module: Plot Preparation Area
+2026-10-30T09:09:08.966Z [info] Clicking Continue
+2026-10-30T09:09:08.967Z [info] Clicking Continue button
+2026-10-30T09:09:09.049Z [info] Continue clicked ΓÇö dialog closed. Landed on: https://dev-company3.pace-os.com/dashboard
+[
+  {
+    "tabIndex": 0,
+    "tabName": "Advanced Project Engineering",
+    "moduleIndex": 0,
+    "moduleName": "Geo Plot Manager"
+  },
+  {
+    "tabIndex": 0,
+    "tabName": "Advanced Project Engineering",
+    "moduleIndex": 1,
+    "moduleName": "Geo Plot Radar"
+  },
+  {
+    "tabIndex": 0,
+    "tabName": "Advanced Project Engineering",
+    "moduleIndex": 2,
+    "moduleName": "APE Digital Control Tower"
+  },
+  {
+    "tabIndex": 0,
+    "tabName": "Advanced Project Engineering",
+    "moduleIndex": 3,
+    "moduleName": "Advanced Analytics"
+  },
+  {
+    "tabIndex": 0,
+    "tabName": "Advanced Project Engineering",
+    "moduleIndex": 4,
+    "moduleName": "Information Management"
+  },
+  {
+    "tabIndex": 0,
+    "tabName": "Advanced Project Engineering",
+    "moduleIndex": 5,
+    "moduleName": "Engineering Work Package"
+  },
+  {
+    "tabIndex": 0,
+    "tabName": "Advanced Project Engineering",
+    "moduleIndex": 6,
+    "moduleName": "Construction Work Package"
+  },
+  {
+    "tabIndex": 0,
+    "tabName": "Advanced Project Engineering",
+    "moduleIndex": 7,
+    "moduleName": "Installation Work Package"
+  },
+  {
+    "tabIndex": 0,
+    "tabName": "Advanced Project Engineering",
+    "moduleIndex": 8,
+    "moduleName": "Progress & Close-out"
+  },
+  {
+    "tabIndex": 0,
+    "tabName": "Advanced Project Engineering",
+    "moduleIndex": 9,
+    "moduleName": "3D View"
+  },
+  {
+    "tabIndex": 0,
+    "tabName": "Advanced Project Engineering",
+    "moduleIndex": 10,
+    "moduleName": "4D View"
+  },
+  {
+    "tabIndex": 0,
+    "tabName": "Advanced Project Engineering",
+    "moduleIndex": 11,
+    "moduleName": "Kanban Material Manager"
+  },
+  {
+    "tabIndex": 0,
+    "tabName": "Advanced Project Engineering",
+    "moduleIndex": 12,
+    "moduleName": "Action Tracker"
+  },
+  {
+    "tabIndex": 1,
+    "tabName": "Productivity Management",
+    "moduleIndex": 0,
+    "moduleName": "Activity Definition"
+  },
+  {
+    "tabIndex": 1,
+    "tabName": "Productivity Management",
+    "moduleIndex": 1,
+    "moduleName": "Activity To Crew Composition"
+  },
+  {
+    "tabIndex": 1,
+    "tabName": "Productivity Management",
+    "moduleIndex": 2,
+    "moduleName": "Owner Productivity Estimate"
+  },
+  {
+    "tabIndex": 1,
+    "tabName": "Productivity Management",
+    "moduleIndex": 3,
+    "moduleName": "Contractor Activity Definition"
+  },
+  {
+    "tabIndex": 1,
+    "tabName": "Productivity Management",
+    "moduleIndex": 4,
+    "moduleName": "Contractor Activity To Crew Composition"
+  },
+  {
+    "tabIndex": 1,
+    "tabName": "Productivity Management",
+    "moduleIndex": 5,
+    "moduleName": "Contractor Productivity Estimates"
+  },
+  {
+    "tabIndex": 2,
+    "tabName": "On-Site Construction & Services",
+    "moduleIndex": 0,
+    "moduleName": "Digital Control Tower"
+  },
+  {
+    "tabIndex": 2,
+    "tabName": "On-Site Construction & Services",
+    "moduleIndex": 1,
+    "moduleName": "Services Management"
+  },
+  {
+    "tabIndex": 2,
+    "tabName": "On-Site Construction & Services",
+    "moduleIndex": 2,
+    "moduleName": "Equipment Management"
+  },
+  {
+    "tabIndex": 2,
+    "tabName": "On-Site Construction & Services",
+    "moduleIndex": 3,
+    "moduleName": "Master Asset Management"
+  },
+  {
+    "tabIndex": 2,
+    "tabName": "On-Site Construction & Services",
+    "moduleIndex": 4,
+    "moduleName": "Permit Management"
+  },
+  {
+    "tabIndex": 3,
+    "tabName": "PACE Administration",
+    "moduleIndex": 0,
+    "moduleName": "Projects"
+  },
+  {
+    "tabIndex": 3,
+    "tabName": "PACE Administration",
+    "moduleIndex": 1,
+    "moduleName": "Users"
+  },
+  {
+    "tabIndex": 3,
+    "tabName": "PACE Administration",
+    "moduleIndex": 2,
+    "moduleName": "Invite Users"
+  },
+  {
+    "tabIndex": 3,
+    "tabName": "PACE Administration",
+    "moduleIndex": 3,
+    "moduleName": "Organization"
+  },
+  {
+    "tabIndex": 3,
+    "tabName": "PACE Administration",
+    "moduleIndex": 4,
+    "moduleName": "Subscriptions"
+  },
+  {
+    "tabIndex": 3,
+    "tabName": "PACE Administration",
+    "moduleIndex": 5,
+    "moduleName": "Departments"
+  },
+  {
+    "tabIndex": 3,
+    "tabName": "PACE Administration",
+    "moduleIndex": 6,
+    "moduleName": "Operating-locations"
+  },
+  {
+    "tabIndex": 3,
+    "tabName": "PACE Administration",
+    "moduleIndex": 7,
+    "moduleName": "Portfolio Manager"
+  }
+]

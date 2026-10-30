@@ -1,5 +1,5 @@
 const { test } = require('../../../utils/controlTowerFixture');
 const { registerSingleReportTest } = require('../../../utils/controlTowerSpec');
-const category = require('../../../testdata/control-tower/project-libraries');
+const category = require('../../../testdata/control-tower/standard-libraries');
 
-registerSingleReportTest(test, category, "CWP/IWP Tag Register");
+registerSingleReportTest(test, category, "IWP-PLIP Matrix");

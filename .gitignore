@@ -13,6 +13,7 @@ stage-auth.json
 # Allure
 allure-report/
 allure-results/
+exports/
 
 # Logs
 logs/
@@ -20,6 +21,7 @@ logs/
 # Environment variables
 .env
 .env.local
+.env.*.local
 
 # OS
 .DS_Store

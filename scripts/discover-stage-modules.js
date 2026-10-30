@@ -1,23 +1,31 @@
+const fs = require('fs');
 const path = require('path');
-require('dotenv').config({
-  path: path.resolve(__dirname, '..', '.env.local'),
-  override: true
-});
+const { loadProdEnv } = require('../utils/loadEnv');
+const { getPaceEnvKey, getEnvironmentProfile } = require('../utils/paceEnv');
 
-const { chromium } = require('playwright');
+loadProdEnv(path.resolve(__dirname, '..'));
+
+const { chromium } = require('@playwright/test');
 const LoginPage = require('../pages/LoginPage');
-const { validUser } = require('../testdata/loginData');
+const { getValidUser } = require('../testdata/loginData');
 const { selectProdProjectContext } = require('../utils/prodProjectContext');
 
 (async () => {
+  const profile = getEnvironmentProfile();
+  const { email, password } = getValidUser();
+  if (!email || !password) {
+    console.error('Set TEST_EMAIL and TEST_PASSWORD for the active PACE_ENV.');
+    process.exit(1);
+  }
+
+  console.log(`[discover-modules] PACE_ENV=${getPaceEnvKey()} (${profile.label})`);
+
   const browser = await chromium.launch({ headless: true });
-  const page = await browser.newPage();
+  const page = await browser.newPage({ baseURL: process.env.BASE_URL });
 
   try {
     const loginPage = new LoginPage(page);
-    await loginPage.goto();
-    await loginPage.login(validUser.email, validUser.password);
-    await page.waitForURL(/select-project|dashboard/i, { timeout: 30000 });
+    await loginPage.login(email, password);
     await selectProdProjectContext(page);
 
     const dashboardUrl = page.url();
@@ -48,6 +56,9 @@ const { selectProdProjectContext } = require('../utils/prodProjectContext');
       });
     }
 
+    const outPath = path.resolve(__dirname, '..', 'testdata', `discovered-${getPaceEnvKey()}-modules.json`);
+    fs.writeFileSync(outPath, `${JSON.stringify(modules, null, 2)}\n`, 'utf8');
+    console.log(`[discover-modules] wrote ${outPath}`);
     console.log(JSON.stringify(modules, null, 2));
   } catch (error) {
     console.error('DISCOVERY_FAILED:', error.message);

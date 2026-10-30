@@ -1,6 +1,8 @@
 const path = require('path');
 const { isFastMode } = require('./utils/fastMode');
 const { loadProdEnv } = require('./utils/loadEnv');
+const { CASE_TIMEOUT_MS } = require('./utils/testTiming');
+const { getPlaywrightEnvGrep, combineGrepPatterns } = require('./utils/envTestFilter');
 
 /**
  * Shared production Playwright options (no @playwright/test import here).
@@ -8,13 +10,13 @@ const { loadProdEnv } = require('./utils/loadEnv');
 function createProdPlaywrightConfig(baseDir, deviceUse = {}) {
   loadProdEnv(baseDir);
 
-  process.env.PACE_TEST_ENV = 'prod';
-
   const fast = isFastMode();
   const defaultWorkers = Number(process.env.PLAYWRIGHT_WORKERS || process.env.WORKERS) || 4;
   const jsonReportFile =
     process.env.PLAYWRIGHT_JSON_OUTPUT || 'report.json';
   const baseURL = process.env.BASE_URL;
+  const envGrep = getPlaywrightEnvGrep();
+  const suiteGrep = combineGrepPatterns(/@prod-modules/, envGrep);
 
   const projectUse = {
     ...deviceUse,
@@ -28,8 +30,8 @@ function createProdPlaywrightConfig(baseDir, deviceUse = {}) {
     workers: defaultWorkers,
     fullyParallel: true,
     forbidOnly: !!process.env.CI,
-    retries: fast ? 0 : 1,
-    timeout: 900000,
+    retries: 0,
+    timeout: CASE_TIMEOUT_MS,
 
     reporter: fast
       ? [['list']]
@@ -55,21 +57,21 @@ function createProdPlaywrightConfig(baseDir, deviceUse = {}) {
       {
         name: 'prod-modules-email',
         testMatch: '**/prod-modules/**/*.spec.js',
-        grep: /@prod-modules/,
+        grep: suiteGrep,
         fullyParallel: true,
         use: { ...projectUse, loginMethod: 'credentials' }
       },
       {
         name: 'prod-modules-badge',
         testMatch: '**/prod-modules/**/*.spec.js',
-        grep: /@prod-modules/,
+        grep: suiteGrep,
         fullyParallel: true,
         use: { ...projectUse, loginMethod: 'badge' }
       },
       {
         name: 'control-tower-reports-email',
-        testMatch: '**/Control-tower-reports/**/*.spec.js',
-        grep: /@prod-modules/,
+        testMatch: '**/Control-tower-reports/reports/**/*.spec.js',
+        grep: suiteGrep,
         fullyParallel: true,
         use: {
           ...projectUse,
@@ -80,8 +82,8 @@ function createProdPlaywrightConfig(baseDir, deviceUse = {}) {
       },
       {
         name: 'control-tower-reports-badge',
-        testMatch: '**/Control-tower-reports/**/*.spec.js',
-        grep: /@prod-modules/,
+        testMatch: '**/Control-tower-reports/reports/**/*.spec.js',
+        grep: suiteGrep,
         fullyParallel: true,
         use: {
           ...projectUse,

@@ -1,11 +1,14 @@
 const fs = require('fs');
 const path = require('path');
+const { getPaceEnvKey } = require('./paceEnv');
 
-const AUTH_DIR = path.resolve(__dirname, '..', '.auth');
+function getAuthDir() {
+  return path.resolve(__dirname, '..', '.auth', getPaceEnvKey());
+}
 
 function getSharedAuthStoragePath(loginMethod = 'credentials') {
   const fileName = loginMethod === 'badge' ? 'badge.json' : 'credentials.json';
-  return path.join(AUTH_DIR, fileName);
+  return path.join(getAuthDir(), fileName);
 }
 
 function getAuthStoragePath(loginMethod = 'credentials', workerIndex = null) {
@@ -14,11 +17,12 @@ function getAuthStoragePath(loginMethod = 'credentials', workerIndex = null) {
   }
 
   const base = loginMethod === 'badge' ? 'badge' : 'credentials';
-  return path.join(AUTH_DIR, `${base}-worker-${workerIndex}.json`);
+  return path.join(getAuthDir(), `${base}-worker-${workerIndex}.json`);
 }
 
 function ensureWorkerAuthStorage(loginMethod, workerIndex) {
-  fs.mkdirSync(AUTH_DIR, { recursive: true });
+  const authDir = getAuthDir();
+  fs.mkdirSync(authDir, { recursive: true });
 
   const workerPath = getAuthStoragePath(loginMethod, workerIndex);
   const seedPath = getSharedAuthStoragePath(loginMethod);
@@ -42,7 +46,7 @@ function authStorageExists(loginMethod = 'credentials', workerIndex = null) {
 }
 
 module.exports = {
-  AUTH_DIR,
+  getAuthDir,
   getAuthStoragePath,
   getSharedAuthStoragePath,
   ensureWorkerAuthStorage,

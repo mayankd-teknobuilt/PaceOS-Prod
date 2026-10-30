@@ -1,14 +1,7 @@
-const path = require('path');
-require('dotenv').config({
-  path: path.resolve(__dirname, '..', '.env.local'),
-  override: true
-});
-
 const LoginPage = require('../pages/LoginPage');
-const { validUser } = require('../testdata/loginData');
+const { getValidUser } = require('../testdata/loginData');
+const { AUTHENTICATED_URL, isLoginFormVisible, waitForAuthenticated } = require('./loginSession');
 const logger = require('./logger');
-
-const AUTHENTICATED_PATH = /\/(dashboard|select-project|my-work|project-list|users)/i;
 
 async function dismissCookieBanner(page) {
   const cookieBtn = page.getByRole('button', { name: 'I understand' });
@@ -20,20 +13,7 @@ async function dismissCookieBanner(page) {
 }
 
 async function isLoginVisible(page) {
-  const emailVisible = await page
-    .locator(
-      'input[name="emailPhone"], input[name="email"], input[placeholder*="Email / Mobile number" i]'
-    )
-    .first()
-    .isVisible()
-    .catch(() => false);
-
-  if (emailVisible) return true;
-
-  return page
-    .getByRole('textbox', { name: 'Badge Number' })
-    .isVisible()
-    .catch(() => false);
+  return isLoginFormVisible(page);
 }
 
 async function isDashboardReady(page) {
@@ -43,7 +23,7 @@ async function isDashboardReady(page) {
 
 async function hasValidSession(page) {
   if (await isDashboardReady(page)) return true;
-  if (!AUTHENTICATED_PATH.test(page.url())) return false;
+  if (!AUTHENTICATED_URL.test(page.url())) return false;
   return !(await isLoginVisible(page));
 }
 
@@ -53,12 +33,6 @@ async function hasValidSession(page) {
  */
 async function performLogin(page, loginMethod = 'credentials') {
   const loginPage = new LoginPage(page);
-
-  if (!(await isLoginVisible(page))) {
-    await loginPage.goto();
-  } else {
-    logger.info('Login form already visible — skipping home reload');
-  }
 
   if (loginMethod === 'badge') {
     const badgeNumber = process.env.BADGE_NUMBER;
@@ -73,11 +47,15 @@ async function performLogin(page, loginMethod = 'credentials') {
     logger.info('Production login (single session) — via Badge Number');
     await loginPage.loginWithBadge(badgeNumber, badgePassword);
   } else {
-    logger.info('Production login (single session) — via Email/Password');
-    await loginPage.login(validUser.email, validUser.password);
+    const { email, password } = getValidUser();
+    if (!email || !password) {
+      throw new Error('TEST_EMAIL and TEST_PASSWORD are required. Set them in .env.local or .env.<PACE_ENV>.local');
+    }
+    logger.info(`Production login (single session) — via Email/Password (${email})`);
+    await loginPage.login(email, password);
   }
 
-  await page.waitForURL(/select-project|dashboard|my-work/i, { timeout: 30000 });
+  await waitForAuthenticated(page, { timeoutMs: 30000 });
 }
 
 async function ensureProdSession(page, loginMethod = 'credentials') {

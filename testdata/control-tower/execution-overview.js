@@ -3,6 +3,7 @@ const { trendViews } = require('./shared');
 module.exports = {
   slug: 'execution-overview',
   name: 'Execution Overview',
+  enabledEnvs: ['prod'],
   setupMode: 'filters',
   prepareTrendViews: trendViews,
   entry: [{ type: 'tab', label: 'Execution Overview' }],

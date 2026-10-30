@@ -109,19 +109,4 @@ function buildReportTestCases(category, { includeTrendViews = false } = {}) {
   return cases;
 }
 
-function buildAllReportTestCases(options = {}) {
-  const { categories } = require('../testdata/control-tower');
-  return categories
-    .filter(category => category.prodEnabled !== false)
-    .flatMap(category => buildReportTestCases(category, options));
-}
-
-function splitIntoWorkerBatches(items, workerCount) {
-  const batches = Array.from({ length: workerCount }, () => []);
-  items.forEach((item, index) => {
-    batches[index % workerCount].push(item);
-  });
-  return batches.filter(batch => batch.length > 0);
-}
-
-module.exports = { buildReportTestCases, buildAllReportTestCases, splitIntoWorkerBatches };
+module.exports = { buildReportTestCases };

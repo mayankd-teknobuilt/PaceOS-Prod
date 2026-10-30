@@ -7,15 +7,20 @@ pipeline {
 
     options {
         timestamps()
-        timeout(time: 3, unit: 'HOURS')
+        timeout(time: 4, unit: 'HOURS')
         buildDiscarder(logRotator(numToKeepStr: '20'))
     }
 
     parameters {
         choice(
             name: 'TEST_SUITE',
-            choices: ['all', 'prod-modules', 'control-tower', 'fast'],
+            choices: ['all', 'prod-only', 'dev3-only', 'prod-modules', 'control-tower', 'dev3-modules', 'dev3-control-tower', 'fast'],
             description: 'Which Playwright suite to run'
+        )
+        booleanParam(
+            name: 'RUN_DEV3',
+            defaultValue: true,
+            description: 'Run Dev Company 3 (PACE_ENV=dev3) jobs in parallel with prod'
         )
     }
 
@@ -24,9 +29,7 @@ pipeline {
         BASE_URL = credentials('pace-base-url')
         TEST_EMAIL = credentials('pace-test-email')
         TEST_PASSWORD = credentials('pace-test-password')
-        PROD_USE_FIRST_PROJECT = 'true'
         PLAYWRIGHT_WORKERS = '4'
-        CT_WORKERS = '4'
     }
 
     stages {
@@ -50,35 +53,77 @@ pipeline {
             }
         }
 
-        stage('Validate Environment') {
-            steps {
-                script {
-                    if (isUnix()) {
-                        sh 'node scripts/validate-ci-env.js'
-                    } else {
-                        bat 'node scripts/validate-ci-env.js'
-                    }
-                }
-            }
-        }
-
         stage('Run Playwright Tests') {
             steps {
                 script {
-                    def command = 'npm run test:ci'
-                    if (params.TEST_SUITE == 'prod-modules') {
-                        command = 'npm run test:ci:prod-modules'
-                    } else if (params.TEST_SUITE == 'control-tower') {
-                        command = 'npm run test:ci:control-tower'
-                    } else if (params.TEST_SUITE == 'fast') {
-                        command = 'npm run test:ci:fast'
+                    def runProdModules = ['all', 'prod-only', 'prod-modules', 'fast'].contains(params.TEST_SUITE)
+                    def runProdCt = ['all', 'prod-only', 'control-tower', 'fast'].contains(params.TEST_SUITE)
+                    def runDev3Modules = params.RUN_DEV3 && ['all', 'dev3-only', 'dev3-modules'].contains(params.TEST_SUITE)
+                    def runDev3Ct = params.RUN_DEV3 && ['all', 'dev3-only', 'dev3-control-tower'].contains(params.TEST_SUITE)
+
+                    def branches = [:]
+
+                    if (runProdModules) {
+                        branches['Prod modules'] = {
+                            stage('Prod modules') {
+                                if (isUnix()) {
+                                    sh 'node scripts/create-ci-env.js && node scripts/validate-ci-env.js'
+                                    sh 'cross-env CI=true PLAYWRIGHT_JSON_OUTPUT=report-prod-modules.json npm run test:ci:prod-modules'
+                                } else {
+                                    bat 'node scripts\\create-ci-env.js && node scripts\\validate-ci-env.js'
+                                    bat 'npm run test:ci:prod-modules'
+                                }
+                            }
+                        }
                     }
 
-                    if (isUnix()) {
-                        sh command
-                    } else {
-                        bat command
+                    if (runProdCt) {
+                        branches['Prod Control Tower'] = {
+                            stage('Prod Control Tower') {
+                                if (isUnix()) {
+                                    sh 'node scripts/create-ci-env.js && node scripts/validate-ci-env.js'
+                                    sh 'cross-env CI=true PLAYWRIGHT_JSON_OUTPUT=report-control-tower.json npm run test:ci:control-tower'
+                                } else {
+                                    bat 'node scripts\\create-ci-env.js && node scripts\\validate-ci-env.js'
+                                    bat 'npm run test:ci:control-tower'
+                                }
+                            }
+                        }
                     }
+
+                    if (runDev3Modules) {
+                        branches['Dev3 modules'] = {
+                            stage('Dev3 modules') {
+                                if (isUnix()) {
+                                    sh 'cross-env PACE_ENV=dev3 node scripts/create-ci-env.js && cross-env PACE_ENV=dev3 node scripts/validate-ci-env.js'
+                                    sh 'cross-env CI=true PACE_ENV=dev3 PLAYWRIGHT_JSON_OUTPUT=report-dev3-modules.json npm run test:ci:dev3:prod-modules'
+                                } else {
+                                    bat 'set PACE_ENV=dev3&& node scripts\\create-ci-env.js && set PACE_ENV=dev3&& node scripts\\validate-ci-env.js'
+                                    bat 'set PACE_ENV=dev3&& npm run test:ci:dev3:prod-modules'
+                                }
+                            }
+                        }
+                    }
+
+                    if (runDev3Ct) {
+                        branches['Dev3 Control Tower'] = {
+                            stage('Dev3 Control Tower') {
+                                if (isUnix()) {
+                                    sh 'cross-env PACE_ENV=dev3 node scripts/create-ci-env.js && cross-env PACE_ENV=dev3 node scripts/validate-ci-env.js'
+                                    sh 'cross-env CI=true PACE_ENV=dev3 PLAYWRIGHT_JSON_OUTPUT=report-dev3-control-tower.json npm run test:ci:dev3:control-tower'
+                                } else {
+                                    bat 'set PACE_ENV=dev3&& node scripts\\create-ci-env.js && set PACE_ENV=dev3&& node scripts\\validate-ci-env.js'
+                                    bat 'set PACE_ENV=dev3&& npm run test:ci:dev3:control-tower'
+                                }
+                            }
+                        }
+                    }
+
+                    if (branches.isEmpty()) {
+                        error("No jobs selected for TEST_SUITE=${params.TEST_SUITE}, RUN_DEV3=${params.RUN_DEV3}")
+                    }
+
+                    parallel branches
                 }
             }
         }
@@ -89,9 +134,11 @@ pipeline {
             script {
                 try {
                     if (isUnix()) {
+                        sh 'node scripts/create-ci-env.js'
                         sh 'node scripts/send-test-report-email.js'
                     } else {
-                        bat 'node scripts/send-test-report-email.js'
+                        bat 'node scripts\\create-ci-env.js'
+                        bat 'node scripts\\send-test-report-email.js'
                     }
                 } catch (err) {
                     echo "Email report skipped or failed: ${err.message}"

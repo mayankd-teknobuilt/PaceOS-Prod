@@ -18,10 +18,11 @@ if (missing.length) {
     console.error('Add these in GitHub -> Settings -> Secrets and variables -> Actions');
     console.error('');
     console.error('Secrets OR Variables (either works):');
-    console.error('  TEST_EMAIL');
-    console.error('  TEST_PASSWORD');
+    console.error('  TEST_EMAIL / TEST_PASSWORD  (prod — Golden Pass)');
+    console.error('  DEV3_TEST_EMAIL / DEV3_TEST_PASSWORD  (optional; falls back to TEST_* for dev3 jobs)');
     console.error('');
-    console.error('Variable (optional, has default):');
+    console.error('Variable (optional):');
+    console.error('  ENABLE_DEV3_CI=false  — skip dev3 jobs (default: run dev3)');
     console.error('  BASE_URL');
     console.error('');
     console.error('Accepted aliases: EMAIL, PASSWORD, PACE_TEST_EMAIL, PACE_TEST_PASSWORD');

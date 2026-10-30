@@ -1,9 +1,12 @@
 const fs = require('fs');
 const path = require('path');
-const { AUTH_DIR } = require('./authStorage');
+const { getAuthDir } = require('./authStorage');
 
-const LOCK_PATH = path.join(AUTH_DIR, 'login.lock');
 const LOCK_STALE_MS = 120000;
+
+function getLockPath() {
+  return path.join(getAuthDir(), 'login.lock');
+}
 
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -11,7 +14,7 @@ function sleep(ms) {
 
 function readLock() {
   try {
-    return fs.readFileSync(LOCK_PATH, 'utf8').trim();
+    return fs.readFileSync(getLockPath(), 'utf8').trim();
   } catch {
     return null;
   }
@@ -19,9 +22,10 @@ function readLock() {
 
 function clearStaleLock() {
   try {
-    const stat = fs.statSync(LOCK_PATH);
+    const lockPath = getLockPath();
+    const stat = fs.statSync(lockPath);
     if (Date.now() - stat.mtimeMs > LOCK_STALE_MS) {
-      fs.unlinkSync(LOCK_PATH);
+      fs.unlinkSync(lockPath);
     }
   } catch {
     // no lock
@@ -29,13 +33,14 @@ function clearStaleLock() {
 }
 
 async function acquireLoginLock(owner, timeoutMs = 120000) {
-  fs.mkdirSync(AUTH_DIR, { recursive: true });
+  fs.mkdirSync(getAuthDir(), { recursive: true });
   const deadline = Date.now() + timeoutMs;
+  const lockPath = getLockPath();
 
   while (Date.now() < deadline) {
     clearStaleLock();
     try {
-      fs.writeFileSync(LOCK_PATH, `${owner}:${process.pid}:${Date.now()}`, { flag: 'wx' });
+      fs.writeFileSync(lockPath, `${owner}:${process.pid}:${Date.now()}`, { flag: 'wx' });
       return;
     } catch (error) {
       if (error.code !== 'EEXIST') {
@@ -52,7 +57,7 @@ function releaseLoginLock(owner) {
   try {
     const current = readLock();
     if (current?.startsWith(`${owner}:`)) {
-      fs.unlinkSync(LOCK_PATH);
+      fs.unlinkSync(getLockPath());
     }
   } catch {
     // already released
