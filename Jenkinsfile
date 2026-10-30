@@ -43,10 +43,10 @@ pipeline {
             steps {
                 script {
                     if (isUnix()) {
-                        sh 'npm ci'
+                        sh 'npm ci --ignore-scripts'
                         sh 'npx playwright install --with-deps chromium'
                     } else {
-                        bat 'npm ci'
+                        bat 'npm ci --ignore-scripts'
                         bat 'npx playwright install chromium'
                     }
                 }

@@ -3,15 +3,19 @@ const { isFastMode } = require('./utils/fastMode');
 const { loadProdEnv } = require('./utils/loadEnv');
 const { CASE_TIMEOUT_MS } = require('./utils/testTiming');
 const { getPlaywrightEnvGrep, combineGrepPatterns } = require('./utils/envTestFilter');
+const { isDev3ModulesSerialCi, applyModulesCiDefaults } = require('./utils/ciModules');
 
 /**
  * Shared production Playwright options (no @playwright/test import here).
  */
 function createProdPlaywrightConfig(baseDir, deviceUse = {}) {
   loadProdEnv(baseDir);
+  applyModulesCiDefaults();
 
   const fast = isFastMode();
   const defaultWorkers = Number(process.env.PLAYWRIGHT_WORKERS || process.env.WORKERS) || 4;
+  const controlTowerFullyParallel = process.env.CI !== 'true';
+  const prodModulesFullyParallel = !isDev3ModulesSerialCi();
   const jsonReportFile =
     process.env.PLAYWRIGHT_JSON_OUTPUT || 'report.json';
   const baseURL = process.env.BASE_URL;
@@ -58,21 +62,21 @@ function createProdPlaywrightConfig(baseDir, deviceUse = {}) {
         name: 'prod-modules-email',
         testMatch: '**/prod-modules/**/*.spec.js',
         grep: suiteGrep,
-        fullyParallel: true,
+        fullyParallel: prodModulesFullyParallel,
         use: { ...projectUse, loginMethod: 'credentials' }
       },
       {
         name: 'prod-modules-badge',
         testMatch: '**/prod-modules/**/*.spec.js',
         grep: suiteGrep,
-        fullyParallel: true,
+        fullyParallel: prodModulesFullyParallel,
         use: { ...projectUse, loginMethod: 'badge' }
       },
       {
         name: 'control-tower-reports-email',
         testMatch: '**/Control-tower-reports/reports/**/*.spec.js',
         grep: suiteGrep,
-        fullyParallel: true,
+        fullyParallel: controlTowerFullyParallel,
         use: {
           ...projectUse,
           actionTimeout: fast ? 20000 : 20000,
@@ -84,7 +88,7 @@ function createProdPlaywrightConfig(baseDir, deviceUse = {}) {
         name: 'control-tower-reports-badge',
         testMatch: '**/Control-tower-reports/reports/**/*.spec.js',
         grep: suiteGrep,
-        fullyParallel: true,
+        fullyParallel: controlTowerFullyParallel,
         use: {
           ...projectUse,
           actionTimeout: fast ? 20000 : 20000,

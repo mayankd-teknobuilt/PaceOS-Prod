@@ -34,6 +34,20 @@ function ensureWorkerAuthStorage(loginMethod, workerIndex) {
   return workerPath;
 }
 
+/** Pre-seed worker-N files from global-setup login so parallel workers skip redundant logins. */
+function seedWorkerAuthStores(workerCount, loginMethods = ['credentials']) {
+  const count = Math.max(1, Number(workerCount) || 1);
+  for (const loginMethod of loginMethods) {
+    const seedPath = getSharedAuthStoragePath(loginMethod);
+    if (!fs.existsSync(seedPath)) {
+      continue;
+    }
+    for (let i = 0; i < count; i++) {
+      ensureWorkerAuthStorage(loginMethod, i);
+    }
+  }
+}
+
 function authStorageExists(loginMethod = 'credentials', workerIndex = null) {
   if (workerIndex !== null && workerIndex !== undefined) {
     return (
@@ -50,5 +64,6 @@ module.exports = {
   getAuthStoragePath,
   getSharedAuthStoragePath,
   ensureWorkerAuthStorage,
+  seedWorkerAuthStores,
   authStorageExists
 };

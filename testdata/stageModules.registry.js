@@ -64,6 +64,7 @@ const MODULE_REGISTRY = [
     tabIndex: 3,
     tabName: 'PACE Administration',
     moduleIndex: 0,
+    urlPattern: /project-list/i,
     enabledEnvs: ['prod', 'dev3']
   }),
   entry({
@@ -71,6 +72,7 @@ const MODULE_REGISTRY = [
     tabIndex: 3,
     tabName: 'PACE Administration',
     moduleIndex: 1,
+    urlPattern: /\/users/i,
     enabledEnvs: ['prod', 'dev3']
   }),
   entry({
@@ -78,6 +80,7 @@ const MODULE_REGISTRY = [
     tabIndex: 3,
     tabName: 'PACE Administration',
     moduleIndex: 2,
+    urlPattern: /invite|user-invite|invitation/i,
     enabledEnvs: ['prod', 'dev3']
   }),
   entry({
@@ -92,6 +95,7 @@ const MODULE_REGISTRY = [
     tabIndex: 3,
     tabName: 'PACE Administration',
     moduleIndex: 4,
+    urlPattern: /subscription/i,
     enabledEnvs: ['prod', 'dev3']
   }),
   entry({
@@ -113,6 +117,7 @@ const MODULE_REGISTRY = [
     tabIndex: 3,
     tabName: 'PACE Administration',
     moduleIndex: 7,
+    urlPattern: /\/portfolio/i,
     enabledEnvs: ['prod', 'dev3']
   }),
 
@@ -147,6 +152,7 @@ function resolveModuleMeta(entryRow, envKey = getPaceEnvKey()) {
     tabIndex: override.tabIndex ?? entryRow.tabIndex,
     tabName: override.tabName ?? entryRow.tabName,
     moduleIndex: override.moduleIndex ?? entryRow.moduleIndex,
+    urlPattern: override.urlPattern ?? entryRow.urlPattern,
     enabledEnvs: entryRow.enabledEnvs
   };
 }

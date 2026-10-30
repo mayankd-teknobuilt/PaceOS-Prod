@@ -1,6 +1,7 @@
 const { expect } = require('@playwright/test');
 const ProjectPage = require('../pages/ProjectPage');
 const { getProjectData } = require('../testdata/TestData');
+const { safeGoto } = require('./safeNavigation');
 const logger = require('./logger');
 const { pauseForVisibility } = require('./stageTiming');
 
@@ -45,9 +46,21 @@ async function selectProdProjectContext(page) {
   };
 
   if (!/\/select-project/i.test(page.url())) {
-    await page.goto(new URL('/select-project', baseUrl).toString(), {
-      waitUntil: 'domcontentloaded'
-    });
+    await safeGoto(page, new URL('/select-project', baseUrl).toString());
+  }
+
+  const selectProjectDeadline = Date.now() + 60000;
+  while (!/\/select-project/i.test(page.url()) && Date.now() < selectProjectDeadline) {
+    if (/logout/i.test(page.url())) {
+      await page.waitForTimeout(1500);
+    } else {
+      await safeGoto(page, new URL('/select-project', baseUrl).toString());
+    }
+    await page.waitForURL(/select-project/i, { timeout: 15000 }).catch(() => {});
+  }
+
+  if (!/\/select-project/i.test(page.url())) {
+    throw new Error(`Project selection page did not load (current URL: ${page.url()})`);
   }
 
   const projectPage = new ProjectPage(page);
@@ -140,7 +153,7 @@ async function selectProdProjectContext(page) {
 
   await page.waitForURL(/dashboard|my-work/i, { timeout: 30000 });
   if (!/dashboard/i.test(page.url())) {
-    await page.goto(new URL('/dashboard', baseUrl).toString(), { waitUntil: 'domcontentloaded' });
+    await safeGoto(page, new URL('/dashboard', baseUrl).toString());
   }
 
   await expect(page, 'Dashboard did not open after project context selection.').toHaveURL(/dashboard/i, {

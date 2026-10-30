@@ -2,14 +2,15 @@ const { buildReportTestCases } = require('./controlTowerParallel');
 const { isCategoryEnabledForEnv, getCategoryEnvScopeTag } = require('./paceEnv');
 const {
   REPORT_ATTEMPTS,
-  CASE_TIMEOUT_MS,
+  getCaseTimeoutMs,
+  getCaseAttemptMs,
   attemptBudgetMs,
   remainingMs
 } = require('./testTiming');
 const logger = require('./logger');
 
-async function runWithAttemptBudget(fn, deadlineMs, label) {
-  const budgetMs = attemptBudgetMs(deadlineMs);
+async function runWithAttemptBudget(fn, deadlineMs, label, attemptCapMs) {
+  const budgetMs = attemptBudgetMs(deadlineMs, attemptCapMs);
   if (budgetMs <= 0) {
     throw new Error(`${label} skipped — case time budget exhausted.`);
   }
@@ -59,7 +60,8 @@ async function runReportBody(testCase, { navigation, errorMonitor, test }) {
 
 async function runReportWithRetry(testCase, { navigation, errorMonitor, test }) {
   let lastError = null;
-  const deadlineMs = Date.now() + CASE_TIMEOUT_MS;
+  const attemptCapMs = getCaseAttemptMs(testCase.reportName);
+  const deadlineMs = Date.now() + getCaseTimeoutMs(testCase.reportName);
 
   for (let attempt = 1; attempt <= REPORT_ATTEMPTS; attempt++) {
     if (remainingMs(deadlineMs) <= 0) {
@@ -74,7 +76,8 @@ async function runReportWithRetry(testCase, { navigation, errorMonitor, test }) 
         await runWithAttemptBudget(
           () => runReportBody(testCase, { navigation, errorMonitor, test }),
           deadlineMs,
-          stepLabel
+          stepLabel,
+          attemptCapMs
         );
       });
       return null;
@@ -85,7 +88,12 @@ async function runReportWithRetry(testCase, { navigation, errorMonitor, test }) 
       );
 
       if (attempt < REPORT_ATTEMPTS && remainingMs(deadlineMs) > 0) {
-        await navigation.reportsPage.ensureControlTowerTabActive();
+        try {
+          await navigation.reportsPage.ensureControlTowerTabActive();
+        } catch (recoverErr) {
+          logger.warn(`Control Tower tab recovery before retry: ${recoverErr.message}`);
+          await navigation.openControlTower(navigation.dashboardPage.context(), errorMonitor);
+        }
         await navigation.reportsPage.waitForReportSettle({ quick: true });
       }
     }
@@ -122,8 +130,12 @@ function registerSingleReportTest(test, category, reportName) {
   }
 
   test.describe(titlePrefix, () => {
+    if (process.env.CI === 'true') {
+      test.describe.configure({ mode: 'serial' });
+    }
+
     test('opens and loads without application errors', async ({ controlTower }) => {
-      test.setTimeout(CASE_TIMEOUT_MS);
+      test.setTimeout(getCaseTimeoutMs(reportName));
       const failure = await runReportWithRetry(testCase, {
         navigation: controlTower.navigation,
         errorMonitor: controlTower.errorMonitor,

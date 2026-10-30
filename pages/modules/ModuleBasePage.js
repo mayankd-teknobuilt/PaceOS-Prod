@@ -109,6 +109,8 @@ class ModuleBasePage extends BasePage {
           logger.warn(
             `Module "${meta.moduleName}" attempt ${attempt}/${REPORT_ATTEMPTS} failed: ${error.message}`
           );
+          const dashboard = new StageDashboardPage(dashboardPage);
+          await dashboard.navigateToDashboardWithRecovery().catch(() => {});
         }
       }
     }
