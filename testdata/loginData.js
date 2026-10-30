@@ -1,6 +1,12 @@
+const { getTestCredentials } = require('../utils/envSecrets');
+
+function getValidUser() {
+  return getTestCredentials();
+}
+
 module.exports = {
-  validUser: {
-    email: process.env.TEST_EMAIL,
-    password: process.env.TEST_PASSWORD
-  }
+  get validUser() {
+    return getValidUser();
+  },
+  getValidUser
 };

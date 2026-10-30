@@ -1,8 +1,15 @@
-module.exports = {
-  projectData: {
+function getProjectData() {
+  return {
     projectName: process.env.PROD_PROJECT_NAME?.trim() || '',
-    Module: process.env.PROD_PHASE?.trim() || 'Process Train - 2',
-    subModule: process.env.PROD_SECTION?.trim() || '2200 - Main Piperack',
-    subSubModule: process.env.PROD_BLOCK?.trim() || '2210-Main Piperack (Level - 5)'
-  }
+    Module: process.env.PROD_PHASE?.trim() || '',
+    subModule: process.env.PROD_SECTION?.trim() || '',
+    subSubModule: process.env.PROD_BLOCK?.trim() || ''
+  };
+}
+
+module.exports = {
+  get projectData() {
+    return getProjectData();
+  },
+  getProjectData
 };

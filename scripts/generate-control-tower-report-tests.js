@@ -53,5 +53,14 @@ for (const legacySpec of LEGACY_CATEGORY_SPECS) {
   }
 }
 
+const generatedSet = new Set(generated.map(rel => path.resolve(__dirname, '..', rel)));
+for (const entry of fs.readdirSync(reportsDir)) {
+  if (!entry.endsWith('.spec.js')) continue;
+  const fullPath = path.join(reportsDir, entry);
+  if (!generatedSet.has(fullPath)) {
+    fs.unlinkSync(fullPath);
+  }
+}
+
 console.log(`Generated ${generated.length} Control Tower report specs in tests/Control-tower-reports/reports/`);
 console.log(`Removed ${LEGACY_CATEGORY_SPECS.length} legacy category session specs.`);

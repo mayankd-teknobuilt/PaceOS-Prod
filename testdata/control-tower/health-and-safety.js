@@ -3,6 +3,7 @@ const { trendViews } = require('./shared');
 module.exports = {
   slug: 'health-and-safety',
   name: 'Health And Safety',
+  enabledEnvs: ['prod'],
   setupMode: 'minimal',
   prepareTrendViews: trendViews,
   entry: [{ type: 'tab', label: 'Health And Safety' }],

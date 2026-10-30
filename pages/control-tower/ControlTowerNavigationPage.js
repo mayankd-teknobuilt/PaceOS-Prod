@@ -2,11 +2,7 @@ const ControlTowerReportsPage = require('./ControlTowerReportsPage');
 const StageDashboardPage = require('../StageDashboardPage');
 const logger = require('../../utils/logger');
 const { portfolioUrl, CONTROL_TOWER_URL } = require('../../testdata/control-tower/shared');
-
-const CONTROL_TOWER_TAB =
-  process.env.PROD_CONTROL_TOWER_TAB?.trim() || 'Digital Control Tower';
-const CONTROL_TOWER_MODULE =
-  process.env.PROD_CONTROL_TOWER_MODULE?.trim() || 'Digital Control Tower';
+const { getControlTowerDashboardMeta } = require('../../utils/controlTowerEnv');
 
 class ControlTowerNavigationPage {
   constructor(dashboardPage) {
@@ -17,26 +13,57 @@ class ControlTowerNavigationPage {
 
   async openControlTowerFromDashboard(context, errorMonitor) {
     const dashboard = new StageDashboardPage(this.dashboardPage);
-    await dashboard.returnToDashboard(CONTROL_TOWER_TAB);
+    const meta = getControlTowerDashboardMeta();
 
-    const moduleCard = dashboard.moduleCardLocator(CONTROL_TOWER_MODULE);
+    logger.info(`Opening Control Tower via dashboard: ${meta.tabName} -> ${meta.moduleName}`);
+    await dashboard.returnToDashboard(meta.tabName);
+
+    const moduleCard = await dashboard.resolveModuleCard(meta);
     await moduleCard.waitFor({ state: 'visible', timeout: 30000 });
 
-    const popupPromise = context.waitForEvent('page', { timeout: 45000 });
-    await moduleCard.dblclick({ force: true }).catch(async () => {
-      await moduleCard.click({ force: true });
-    });
+    const pageCountBefore = context.pages().length;
+    await moduleCard.scrollIntoViewIfNeeded();
+    await moduleCard.dblclick({ force: true });
 
-    let ctPage = null;
-    try {
-      ctPage = await popupPromise;
-    } catch {
-      ctPage = null;
+    let ctPage = await dashboard.waitForModulePage(context, CONTROL_TOWER_URL, 60000);
+
+    if (!ctPage) {
+      const popupPromise = context.waitForEvent('page', { timeout: 15000 });
+      await moduleCard.dblclick({ force: true });
+      try {
+        ctPage = await popupPromise;
+      } catch {
+        ctPage = null;
+      }
     }
 
     if (!ctPage) {
-      logger.info('Control Tower popup not detected — opening portfolio URL directly');
-      ctPage = await context.newPage();
+      const pages = context.pages();
+      if (pages.length > pageCountBefore) {
+        for (let i = pages.length - 1; i >= pageCountBefore; i--) {
+          if (CONTROL_TOWER_URL.test(pages[i].url())) {
+            ctPage = pages[i];
+            break;
+          }
+        }
+        if (!ctPage) {
+          ctPage = pages[pages.length - 1];
+        }
+      }
+    }
+
+    if (!ctPage) {
+      try {
+        await this.dashboardPage.waitForURL(CONTROL_TOWER_URL, { timeout: 30000 });
+        ctPage = this.dashboardPage;
+      } catch {
+        ctPage = null;
+      }
+    }
+
+    if (!ctPage) {
+      logger.info('Control Tower tab not detected — opening portfolio URL on dashboard context');
+      ctPage = this.dashboardPage;
       await ctPage.goto(portfolioUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
     } else {
       await ctPage.bringToFront();
@@ -73,7 +100,7 @@ class ControlTowerNavigationPage {
       return this.controlTowerTab;
     }
 
-    logger.info('Opening production Control Tower from dashboard');
+    logger.info('Opening Control Tower from dashboard');
     errorMonitor.reset();
 
     await this.dashboardPage.bringToFront();

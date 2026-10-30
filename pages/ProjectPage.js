@@ -31,10 +31,40 @@ class ProjectPage extends BasePage {
     await this.page.waitForTimeout(500);
   }
 
-  async selectProject(projectName) {
-    logger.info(`Selecting project: ${projectName}`);
+  /** 1-based index matching project cards on /select-project (see codegen nth-child). */
+  async selectProjectByCardIndex(index1Based) {
+    const index = Number(index1Based);
+    if (!Number.isFinite(index) || index < 1) {
+      throw new Error(`Invalid project card index: ${index1Based}`);
+    }
+    logger.info(`Selecting project card at index ${index}`);
     await this.dismissCookieBanner();
-    await this.safeClick(this.projectCards.filter({ hasText: projectName }).first());
+    const card = this.projectMediaCards.nth(index - 1);
+    await card.waitFor({ state: 'visible', timeout: 30000 });
+    await this.safeClick(card);
+    await this.page.waitForTimeout(500);
+  }
+
+  async selectProject(projectName, projectCode = '') {
+    logger.info(`Selecting project: ${projectName}${projectCode ? ` (${projectCode})` : ''}`);
+    await this.dismissCookieBanner();
+
+    let card = this.projectCards.filter({ hasText: projectName }).first();
+    if (projectCode) {
+      const withCode = this.projectCards.filter({ hasText: projectName }).filter({ hasText: projectCode });
+      if (await withCode.count().then(c => c > 0).catch(() => false)) {
+        card = withCode.first();
+      }
+    }
+
+    if (!(await card.isVisible().catch(() => false))) {
+      card = this.projectCards.filter({ hasText: projectName }).first();
+    }
+
+    await card.waitFor({ state: 'visible', timeout: 30000 });
+    const media = card.locator('.MuiCardMedia-root').first();
+    const clickTarget = (await media.count().catch(() => 0)) > 0 ? media : card;
+    await this.safeClick(clickTarget);
     await this.page.waitForTimeout(500);
   }
 

@@ -1,8 +1,6 @@
 const path = require('path');
-require('dotenv').config({
-  path: path.resolve(__dirname, '..', '.env.local'),
-  override: true
-});
+const { loadProdEnv } = require('./loadEnv');
+loadProdEnv(path.resolve(__dirname, '..'));
 
 const { test: base, expect } = require('@playwright/test');
 const StageDashboardPage = require('../pages/StageDashboardPage');
@@ -32,7 +30,7 @@ const test = base.extend({
       const workerIndex = workerInfo.workerIndex;
       if (!authStorageExists(loginMethod, workerIndex)) {
         throw new Error(
-          `Missing auth storage for ${loginMethod}. Global setup should create .auth/credentials.json`
+          `Missing auth storage for ${loginMethod}. Run tests once so global-setup creates .auth/${process.env.PACE_ENV || 'prod'}/ credentials.`
         );
       }
 
