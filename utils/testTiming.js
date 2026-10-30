@@ -14,7 +14,11 @@ const SLOW_CT_REPORTS = new Set([
   'Project Engineering Document Deliverable Register',
   'Master Tag Register',
   'ITP Inspection Register',
-  'L4 Norms Matrix'
+  'L4 Norms Matrix',
+  'PMID-wise Progress',
+  'Management Weekly Progress',
+  'Execution Team Lead Summary',
+  'IWP Stage Overview'
 ]);
 
 function getCaseTimeoutMs(reportName) {

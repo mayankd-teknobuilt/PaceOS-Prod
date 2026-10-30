@@ -11,9 +11,8 @@ function createProdPlaywrightConfig(baseDir, deviceUse = {}) {
   loadProdEnv(baseDir);
 
   const fast = isFastMode();
-  const paceEnvKey = (process.env.PACE_ENV || 'prod').trim().toLowerCase();
   const defaultWorkers = Number(process.env.PLAYWRIGHT_WORKERS || process.env.WORKERS) || 4;
-  const controlTowerFullyParallel = paceEnvKey !== 'dev3';
+  const controlTowerFullyParallel = process.env.CI !== 'true';
   const jsonReportFile =
     process.env.PLAYWRIGHT_JSON_OUTPUT || 'report.json';
   const baseURL = process.env.BASE_URL;

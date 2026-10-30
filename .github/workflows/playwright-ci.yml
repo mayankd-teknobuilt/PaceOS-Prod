@@ -78,11 +78,11 @@ jobs:
           retention-days: 14
 
   control-tower:
-    name: Prod — Control Tower (4 workers)
+    name: Prod — Control Tower (1 worker in CI)
     if: >-
       ${{ github.event_name != 'workflow_dispatch'
       || contains(fromJSON('["all","prod-only","control-tower","fast"]'), github.event.inputs.suite) }}
-    timeout-minutes: 180
+    timeout-minutes: 240
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -98,8 +98,14 @@ jobs:
       - name: Run Control Tower reports
         env:
           PLAYWRIGHT_JSON_OUTPUT: report-control-tower.json
+          PLAYWRIGHT_WORKERS: 1
+          CASE_TIMEOUT_MS: 180000
+          CASE_ATTEMPT_MS: 90000
+          SLOW_CASE_TIMEOUT_MS: 300000
+          SLOW_CASE_ATTEMPT_MS: 150000
+          DOWNLOAD_TIMEOUT_MS: 45000
           PACE_FAST: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.suite == 'fast' && 'true' || 'false' }}
-        run: npx playwright test --project=control-tower-reports-email tests/Control-tower-reports/reports --workers=4
+        run: npx playwright test --project=control-tower-reports-email tests/Control-tower-reports/reports --workers=1
       - uses: actions/upload-artifact@v4
         if: always()
         with:

@@ -88,7 +88,12 @@ async function runReportWithRetry(testCase, { navigation, errorMonitor, test }) 
       );
 
       if (attempt < REPORT_ATTEMPTS && remainingMs(deadlineMs) > 0) {
-        await navigation.reportsPage.ensureControlTowerTabActive();
+        try {
+          await navigation.reportsPage.ensureControlTowerTabActive();
+        } catch (recoverErr) {
+          logger.warn(`Control Tower tab recovery before retry: ${recoverErr.message}`);
+          await navigation.openControlTower(navigation.dashboardPage.context(), errorMonitor);
+        }
         await navigation.reportsPage.waitForReportSettle({ quick: true });
       }
     }
