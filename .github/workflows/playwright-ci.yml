@@ -147,10 +147,11 @@ jobs:
       ${{ vars.ENABLE_DEV3_CI != 'false'
       && (github.event_name != 'workflow_dispatch'
       || contains(fromJSON('["all","dev3-only","dev3-control-tower"]'), github.event.inputs.suite)) }}
-    timeout-minutes: 180
+    timeout-minutes: 240
     runs-on: ubuntu-latest
     env:
       PACE_ENV: dev3
+      PLAYWRIGHT_WORKERS: 1
       TEST_EMAIL: ${{ secrets.DEV3_TEST_EMAIL || vars.DEV3_TEST_EMAIL || secrets.TEST_EMAIL || vars.TEST_EMAIL }}
       TEST_PASSWORD: ${{ secrets.DEV3_TEST_PASSWORD || vars.DEV3_TEST_PASSWORD || secrets.TEST_PASSWORD || vars.TEST_PASSWORD }}
     steps:
@@ -167,6 +168,11 @@ jobs:
       - name: Run dev3 Control Tower reports
         env:
           PLAYWRIGHT_JSON_OUTPUT: report-dev3-control-tower.json
+          PLAYWRIGHT_WORKERS: 1
+          CASE_TIMEOUT_MS: 180000
+          CASE_ATTEMPT_MS: 90000
+          SLOW_CASE_TIMEOUT_MS: 300000
+          SLOW_CASE_ATTEMPT_MS: 150000
         run: npx playwright test --project=control-tower-reports-email --workers=1
       - uses: actions/upload-artifact@v4
         if: always()

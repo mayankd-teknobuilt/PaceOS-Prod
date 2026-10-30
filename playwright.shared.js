@@ -11,7 +11,9 @@ function createProdPlaywrightConfig(baseDir, deviceUse = {}) {
   loadProdEnv(baseDir);
 
   const fast = isFastMode();
+  const paceEnvKey = (process.env.PACE_ENV || 'prod').trim().toLowerCase();
   const defaultWorkers = Number(process.env.PLAYWRIGHT_WORKERS || process.env.WORKERS) || 4;
+  const controlTowerFullyParallel = paceEnvKey !== 'dev3';
   const jsonReportFile =
     process.env.PLAYWRIGHT_JSON_OUTPUT || 'report.json';
   const baseURL = process.env.BASE_URL;
@@ -72,7 +74,7 @@ function createProdPlaywrightConfig(baseDir, deviceUse = {}) {
         name: 'control-tower-reports-email',
         testMatch: '**/Control-tower-reports/reports/**/*.spec.js',
         grep: suiteGrep,
-        fullyParallel: true,
+        fullyParallel: controlTowerFullyParallel,
         use: {
           ...projectUse,
           actionTimeout: fast ? 20000 : 20000,
@@ -84,7 +86,7 @@ function createProdPlaywrightConfig(baseDir, deviceUse = {}) {
         name: 'control-tower-reports-badge',
         testMatch: '**/Control-tower-reports/reports/**/*.spec.js',
         grep: suiteGrep,
-        fullyParallel: true,
+        fullyParallel: controlTowerFullyParallel,
         use: {
           ...projectUse,
           actionTimeout: fast ? 20000 : 20000,

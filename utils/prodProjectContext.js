@@ -50,6 +50,22 @@ async function selectProdProjectContext(page) {
     });
   }
 
+  const selectProjectDeadline = Date.now() + 60000;
+  while (!/\/select-project/i.test(page.url()) && Date.now() < selectProjectDeadline) {
+    if (/logout/i.test(page.url())) {
+      await page.waitForTimeout(1500);
+    } else {
+      await page.goto(new URL('/select-project', baseUrl).toString(), {
+        waitUntil: 'domcontentloaded'
+      });
+    }
+    await page.waitForURL(/select-project/i, { timeout: 15000 }).catch(() => {});
+  }
+
+  if (!/\/select-project/i.test(page.url())) {
+    throw new Error(`Project selection page did not load (current URL: ${page.url()})`);
+  }
+
   const projectPage = new ProjectPage(page);
   const cardIndex = Number(process.env.PROD_PROJECT_CARD_INDEX || 0);
   const projectCode = process.env.PROD_PROJECT_CODE?.trim() || '';

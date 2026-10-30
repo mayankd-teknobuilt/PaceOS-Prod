@@ -27,7 +27,10 @@ const test = base.extend({
         throw new Error('BASE_URL is missing. Check PACE-QA-Automation-prod/.env.local');
       }
 
-      const workerIndex = workerInfo.workerIndex;
+      // After a worker process restart, Playwright may assign workerIndex > 0 even with --workers=1.
+      // Reuse worker-0 auth so the rest of the CT suite does not re-login and hit SSO logout races.
+      const workerIndex =
+        workerInfo.config.workers === 1 ? 0 : workerInfo.workerIndex;
       if (!authStorageExists(loginMethod, workerIndex)) {
         throw new Error(
           `Missing auth storage for ${loginMethod}. Run tests once so global-setup creates .auth/${process.env.PACE_ENV || 'prod'}/ credentials.`
