@@ -110,7 +110,7 @@ jobs:
   dev3-prod-modules:
     name: Dev3 — Modules (4 workers)
     if: >-
-      ${{ env.ENABLE_DEV3_CI == 'true'
+      ${{ vars.ENABLE_DEV3_CI != 'false'
       && (github.event_name != 'workflow_dispatch'
       || contains(fromJSON('["all","dev3-only","dev3-modules"]'), github.event.inputs.suite)) }}
     timeout-minutes: 180
@@ -144,7 +144,7 @@ jobs:
   dev3-control-tower:
     name: Dev3 — Control Tower (1 worker)
     if: >-
-      ${{ env.ENABLE_DEV3_CI == 'true'
+      ${{ vars.ENABLE_DEV3_CI != 'false'
       && (github.event_name != 'workflow_dispatch'
       || contains(fromJSON('["all","dev3-only","dev3-control-tower"]'), github.event.inputs.suite)) }}
     timeout-minutes: 180
