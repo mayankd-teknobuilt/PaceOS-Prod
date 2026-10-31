@@ -201,6 +201,7 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: node scripts/create-ci-env.js
       - run: node scripts/validate-ci-env.js
+      - run: cross-env PACE_ENV=dev3 node scripts/validate-dev3-ct-registry.js
       - name: Run dev3 Control Tower reports
         env:
           PLAYWRIGHT_JSON_OUTPUT: report-dev3-control-tower.json
