@@ -119,6 +119,38 @@ class ControlTowerNavigationPage {
     return ctPage;
   }
 
+  /**
+   * Lightweight recovery between report attempts — stays on the CT tab when possible
+   * (avoids dashboard/login lock contention under parallel workers).
+   */
+  async recoverForReportRetry(context, errorMonitor) {
+    errorMonitor.reset();
+
+    if (this.controlTowerTab && !this.controlTowerTab.isClosed()) {
+      logger.info('Report retry: recovering Control Tower in existing tab');
+      await this.controlTowerTab.bringToFront();
+      errorMonitor.attach(this.controlTowerTab);
+      this.reportsPage.setReportsPage(this.controlTowerTab);
+      await this.reportsPage.ensureControlTowerTabActive();
+      await this.reportsPage.waitForControlTowerShell();
+
+      try {
+        await this.reportsPage.waitForPortfolioReady();
+      } catch (err) {
+        logger.warn(`Portfolio not ready on retry — reloading portfolio: ${err.message}`);
+        await this.controlTowerTab.goto(portfolioUrl, { waitUntil: 'domcontentloaded' });
+        await this.reportsPage.waitForControlTowerShell();
+        await this.reportsPage.waitForPortfolioReady();
+      }
+
+      await this.reportsPage.waitForReportSettle({ quick: true });
+      return;
+    }
+
+    logger.info('Report retry: Control Tower tab missing — reopening from dashboard');
+    await this.openControlTower(context, errorMonitor);
+  }
+
   async navigateAllReports(context, errorMonitor, test) {
     await this.openControlTower(context, errorMonitor);
     await this.reportsPage.openAllReports(test, errorMonitor);

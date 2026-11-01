@@ -27,6 +27,7 @@ class ModuleBasePage extends BasePage {
     this.meta = null;
     this.targetPage = null;
     this.openedInNewTab = false;
+    this.moduleHost = null;
   }
 
   resolveMeta() {
@@ -53,6 +54,7 @@ class ModuleBasePage extends BasePage {
     const result = await dashboard.openModule(meta, context);
     this.targetPage = result.target;
     this.openedInNewTab = result.openedInNewTab;
+    this.moduleHost = result.moduleHost || null;
     return this.targetPage;
   }
 
@@ -78,7 +80,7 @@ class ModuleBasePage extends BasePage {
     const meta = this.resolveMeta();
     const dashboard = new StageDashboardPage(dashboardPage);
     await dashboard.closeModuleAndReturnToDashboard(
-      { target: this.targetPage, openedInNewTab: this.openedInNewTab },
+      { target: this.targetPage, openedInNewTab: this.openedInNewTab, moduleHost: this.moduleHost },
       meta.tabName
     );
   }

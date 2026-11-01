@@ -111,17 +111,25 @@ class StageDashboardPage extends BasePage {
     const dashboardUrl = this.getDashboardUrl();
 
     for (let attempt = 1; attempt <= 3; attempt++) {
-      if (/logout/i.test(this.page.url())) {
-        await this.page.waitForTimeout(2500);
-        await safeGoto(this.page, new URL('/select-project', baseUrl).toString());
-        await this.recoverDashboardSession();
+      if (this.page.isClosed()) {
+        throw new Error('Cannot recover dashboard: page is closed.');
       }
 
-      await safeGoto(this.page, dashboardUrl);
+      if (/logout/i.test(this.page.url())) {
+        await this.page.waitForTimeout(1500);
+        await safeGoto(this.page, dashboardUrl);
+      } else {
+        await safeGoto(this.page, dashboardUrl);
+      }
 
       const tabsVisible = await this.tabs.first().isVisible({ timeout: 15000 }).catch(() => false);
       if (DASHBOARD_PATH.test(this.page.url()) && tabsVisible) {
         return;
+      }
+
+      if (/\/select-project/i.test(this.page.url())) {
+        await this.recoverDashboardSession();
+        continue;
       }
 
       await this.recoverDashboardSession();
@@ -259,18 +267,11 @@ class StageDashboardPage extends BasePage {
     await ctPage.bringToFront();
     await this.waitForModuleFullyLoaded(ctPage, moduleName);
     logger.info(`Control Tower module opened: ${moduleName} | URL=${ctPage.url()}`);
-    return { target: ctPage, openedInNewTab: true };
+    return { target: ctPage, openedInNewTab: true, moduleHost: null };
   }
 
-  async openModule(moduleMeta, context) {
+  async clickModuleCard(moduleMeta, context) {
     const { moduleName, tabName, urlPattern } = moduleMeta;
-
-    await this.returnToDashboard(tabName);
-
-    const { getControlTowerModuleName } = require('../utils/controlTowerEnv');
-    if (moduleName === 'Digital Control Tower' || moduleName === getControlTowerModuleName()) {
-      return this.openControlTowerModule(context, moduleName);
-    }
 
     const moduleCard = await this.resolveModuleCard(moduleMeta);
 
@@ -337,17 +338,48 @@ class StageDashboardPage extends BasePage {
     return { target: this.page, openedInNewTab: false };
   }
 
-  async closeModuleAndReturnToDashboard(moduleResult, tabName = null) {
-    const { target, openedInNewTab } = moduleResult;
+  async openModule(moduleMeta, context) {
+    const { moduleName, tabName } = moduleMeta;
 
-    if (openedInNewTab && target && !target.isClosed()) {
+    await this.returnToDashboard(tabName);
+
+    const { getControlTowerModuleName } = require('../utils/controlTowerEnv');
+    if (moduleName === 'Digital Control Tower' || moduleName === getControlTowerModuleName()) {
+      return this.openControlTowerModule(context, moduleName);
+    }
+
+    const anchor = this.page;
+    const moduleHost = await context.newPage();
+    const hostDashboard = new StageDashboardPage(moduleHost);
+
+    try {
+      await hostDashboard.openDashboard();
+      await hostDashboard.returnToDashboard(tabName);
+      const result = await hostDashboard.clickModuleCard(moduleMeta, context);
+      return { ...result, moduleHost };
+    } catch (error) {
+      if (!moduleHost.isClosed()) {
+        await moduleHost.close().catch(() => {});
+      }
+      await anchor.bringToFront().catch(() => {});
+      throw error;
+    }
+  }
+
+  async closeModuleAndReturnToDashboard(moduleResult, tabName = null) {
+    const { target, openedInNewTab, moduleHost } = moduleResult;
+
+    if (openedInNewTab && target && !target.isClosed() && target !== this.page && target !== moduleHost) {
       await target.close();
     }
 
-    if (!openedInNewTab) {
+    if (moduleHost && !moduleHost.isClosed() && moduleHost !== this.page) {
+      await moduleHost.close();
+    } else if (!openedInNewTab && target === this.page) {
       await this.navigateToDashboardWithRecovery();
     }
 
+    await this.page.bringToFront().catch(() => {});
     await this.returnToDashboard(tabName);
   }
 }

@@ -11,13 +11,24 @@ function applyModulesCiDefaults() {
     return {};
   }
 
-  for (const [key, value] of Object.entries(CI_MODULES_ENV)) {
+  const paceEnv = (process.env.PACE_ENV || process.env.PACE_TEST_ENV || 'prod').trim().toLowerCase();
+  const defaults =
+    paceEnv === 'dev3'
+      ? { ...CI_MODULES_ENV, PLAYWRIGHT_WORKERS: process.env.PLAYWRIGHT_WORKERS || '2' }
+      : { ...CI_MODULES_ENV };
+
+  if (paceEnv === 'dev3') {
+    // Parallel module runs on dev3 share one tenant login; fewer workers avoids auth lock thrashing.
+    process.env.PLAYWRIGHT_WORKERS = process.env.CI_DEV3_MODULE_WORKERS || '2';
+  }
+
+  for (const [key, value] of Object.entries(defaults)) {
     if (!process.env[key]) {
       process.env[key] = value;
     }
   }
 
-  return { ...CI_MODULES_ENV };
+  return { ...defaults };
 }
 
 function isModulesSerialCi() {

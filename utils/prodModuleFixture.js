@@ -9,6 +9,7 @@ const StageDashboardPage = require('../pages/StageDashboardPage');
 const { createErrorMonitor } = require('./moduleErrorMonitor');
 const { ensureWorkerAuthStorage, authStorageExists } = require('./authStorage');
 const { bootstrapProdSession } = require('./prodSessionBootstrap');
+const { attachSessionRouteGuard } = require('./sessionRouteGuard');
 const logger = require('./logger');
 
 /**
@@ -48,6 +49,7 @@ const test = base.extend({
         storageState: storagePath,
         acceptDownloads: true
       });
+      attachSessionRouteGuard(context);
       let page = await context.newPage();
 
       logger.info(

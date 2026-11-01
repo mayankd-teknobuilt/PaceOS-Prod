@@ -9,11 +9,19 @@ const KNOWN_APP_ERRORS = [
 
 const API_RESOURCE_TYPES = new Set(['fetch', 'xhr']);
 
-// Analytics microservice can return 401 while the CT UI still renders "no data" for a report.
-const ANALYTICS_API_401 = /us-dataservices-api\.paceos\.io\/api\/v1\/analytics/i;
+// Analytics microservice can return 401/400 while the CT UI still renders (often "no data").
+const ANALYTICS_DATASERVICES =
+  /dataservices-api\.paceos\.io\/api\/v1\/analytics/i;
 
 function shouldIgnoreHttpError(status, url) {
-  if (status === 401 && ANALYTICS_API_401.test(url)) {
+  if (!ANALYTICS_DATASERVICES.test(url)) {
+    return false;
+  }
+  if (status === 401) {
+    return true;
+  }
+  // Dev3 tenant analytics occasionally 400 on valid UI navigation (empty datasets).
+  if (status === 400 && /dev-in-dataservices-api\.paceos\.io/i.test(url)) {
     return true;
   }
   return false;
