@@ -61,7 +61,7 @@ env:
 
 jobs:
   prod-modules:
-    name: Prod — Modules (4 workers)
+    name: Prod — Modules (2 workers)
     if: >-
       ${{ github.event_name != 'workflow_dispatch'
       || contains(fromJSON('["all","prod-only","prod-modules","fast"]'), github.event.inputs.suite) }}
@@ -69,6 +69,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       PACE_ENV: prod
+      PLAYWRIGHT_WORKERS: '2'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -84,7 +85,7 @@ jobs:
         env:
           PLAYWRIGHT_JSON_OUTPUT: report-prod-modules.json
           PACE_FAST: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.suite == 'fast' && 'true' || 'false' }}
-        run: npx playwright test --project=prod-modules-email --workers=4
+        run: npx playwright test --project=prod-modules-email --workers=2
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -99,7 +100,7 @@ jobs:
           retention-days: 7
 
   control-tower:
-    name: Prod — Control Tower (4 workers)
+    name: Prod — Control Tower (2 workers)
     if: >-
       ${{ (github.event_name != 'workflow_dispatch'
       || contains(fromJSON('["all","prod-only","control-tower","fast"]'), github.event.inputs.suite))
@@ -113,6 +114,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       PACE_ENV: prod
+      PLAYWRIGHT_WORKERS: '2'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -134,7 +136,7 @@ jobs:
           SLOW_CASE_ATTEMPT_MS: 150000
           DOWNLOAD_TIMEOUT_MS: 90000
           PACE_FAST: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.suite == 'fast' && 'true' || 'false' }}
-        run: npx playwright test --project=control-tower-reports-email tests/Control-tower-reports/reports --workers=4
+        run: npx playwright test --project=control-tower-reports-email tests/Control-tower-reports/reports --workers=2
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -164,6 +166,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       PACE_ENV: dev3
+      PLAYWRIGHT_WORKERS: '2'
       TEST_EMAIL: ${{ secrets.DEV3_TEST_EMAIL || vars.DEV3_TEST_EMAIL || secrets.TEST_EMAIL || vars.TEST_EMAIL }}
       TEST_PASSWORD: ${{ secrets.DEV3_TEST_PASSWORD || vars.DEV3_TEST_PASSWORD || secrets.TEST_PASSWORD || vars.TEST_PASSWORD }}
     steps:
@@ -204,6 +207,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       PACE_ENV: dev3
+      PLAYWRIGHT_WORKERS: '2'
       TEST_EMAIL: ${{ secrets.DEV3_TEST_EMAIL || vars.DEV3_TEST_EMAIL || secrets.TEST_EMAIL || vars.TEST_EMAIL }}
       TEST_PASSWORD: ${{ secrets.DEV3_TEST_PASSWORD || vars.DEV3_TEST_PASSWORD || secrets.TEST_PASSWORD || vars.TEST_PASSWORD }}
     steps:

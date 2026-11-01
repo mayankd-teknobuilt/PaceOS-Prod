@@ -470,6 +470,7 @@ class ControlTowerReportsPage extends BasePage {
     }
 
     await expect(control, `Management section "${label}" was not found.`).toBeVisible({ timeout: 20000 });
+    await control.scrollIntoViewIfNeeded({ timeout: 8000 }).catch(() => {});
     await control.click();
 
     if (options.setup) {
@@ -509,7 +510,11 @@ class ControlTowerReportsPage extends BasePage {
     const selected = (await tab.getAttribute('aria-selected')) === 'true';
     if (!selected) {
       await tab.click();
-      await expect(tab).toHaveAttribute('aria-selected', 'true', { timeout: 10000 });
+      const stillSelected = await tab.getAttribute('aria-selected').catch(() => null);
+      if (stillSelected !== 'true') {
+        await tab.click({ timeout: 5000 }).catch(() => {});
+      }
+      await expect(tab).toHaveAttribute('aria-selected', 'true', { timeout: 15000 });
     }
 
     if (options.setup) {

@@ -137,25 +137,50 @@ class StageDashboardPage extends BasePage {
   }
 
   async returnToDashboard(tabName = null) {
+    await this.ensureDashboardTabReady(tabName);
+    this.dashboardUrl = this.page.url();
+    return this.page;
+  }
+
+  /**
+   * Prefer in-place dashboard recovery over /select-project when tabs are already visible
+   * (avoids SSO logout redirects during parallel module / Control Tower runs).
+   */
+  async ensureDashboardTabReady(tabName = null) {
     await this.page.bringToFront();
 
-    const alreadyOnDashboard =
-      DASHBOARD_PATH.test(this.page.url()) &&
-      (await this.tabs.first().isVisible().catch(() => false));
-
-    if (!alreadyOnDashboard) {
-      await this.navigateToDashboardWithRecovery();
+    if (this.page.isClosed()) {
+      throw new Error('Cannot prepare dashboard: page is closed.');
     }
 
+    const onDashboard =
+      DASHBOARD_PATH.test(this.page.url()) &&
+      (await this.tabs.first().isVisible({ timeout: 5000 }).catch(() => false));
+
+    if (onDashboard) {
+      await this.dismissCookieBanner();
+      await this.waitForDashboardReady();
+
+      if (tabName) {
+        const tab = this.tabLocator(tabName);
+        const selected = (await tab.getAttribute('aria-selected').catch(() => null)) === 'true';
+        if (!selected) {
+          await this.openTab(tabName);
+        } else {
+          await this.waitForTabModules();
+        }
+      }
+
+      return;
+    }
+
+    await this.navigateToDashboardWithRecovery();
     await this.dismissCookieBanner();
     await this.waitForDashboardReady();
 
     if (tabName) {
       await this.openTab(tabName);
     }
-
-    this.dashboardUrl = this.page.url();
-    return this.page;
   }
 
   async dismissCookieBanner() {
@@ -341,7 +366,7 @@ class StageDashboardPage extends BasePage {
   async openModule(moduleMeta, context) {
     const { moduleName, tabName } = moduleMeta;
 
-    await this.returnToDashboard(tabName);
+    await this.ensureDashboardTabReady(tabName);
 
     const { getControlTowerModuleName } = require('../utils/controlTowerEnv');
     if (moduleName === 'Digital Control Tower' || moduleName === getControlTowerModuleName()) {
@@ -353,8 +378,12 @@ class StageDashboardPage extends BasePage {
     const hostDashboard = new StageDashboardPage(moduleHost);
 
     try {
-      await hostDashboard.openDashboard();
-      await hostDashboard.returnToDashboard(tabName);
+      await moduleHost.goto(this.getDashboardUrl(), { waitUntil: 'domcontentloaded' });
+      await hostDashboard.dismissCookieBanner();
+      await hostDashboard.waitForDashboardReady();
+      if (tabName) {
+        await hostDashboard.ensureDashboardTabReady(tabName);
+      }
       const result = await hostDashboard.clickModuleCard(moduleMeta, context);
       return { ...result, moduleHost };
     } catch (error) {
@@ -380,7 +409,7 @@ class StageDashboardPage extends BasePage {
     }
 
     await this.page.bringToFront().catch(() => {});
-    await this.returnToDashboard(tabName);
+    await this.ensureDashboardTabReady(tabName);
   }
 }
 

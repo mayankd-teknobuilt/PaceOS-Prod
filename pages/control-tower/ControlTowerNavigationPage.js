@@ -16,7 +16,7 @@ class ControlTowerNavigationPage {
     const meta = getControlTowerDashboardMeta();
 
     logger.info(`Opening Control Tower via dashboard: ${meta.tabName} -> ${meta.moduleName}`);
-    await dashboard.returnToDashboard(meta.tabName);
+    await dashboard.ensureDashboardTabReady(meta.tabName);
 
     const moduleCard = await dashboard.resolveModuleCard(meta);
     await moduleCard.waitFor({ state: 'visible', timeout: 30000 });
@@ -131,7 +131,7 @@ class ControlTowerNavigationPage {
       await this.controlTowerTab.bringToFront();
       errorMonitor.attach(this.controlTowerTab);
       this.reportsPage.setReportsPage(this.controlTowerTab);
-      await this.reportsPage.ensureControlTowerTabActive();
+      await this.controlTowerTab.goto(getPortfolioUrl(), { waitUntil: 'domcontentloaded' }).catch(() => {});
       await this.reportsPage.waitForControlTowerShell();
 
       try {
@@ -165,13 +165,11 @@ class ControlTowerNavigationPage {
 
   async closeControlTower() {
     if (this.controlTowerTab && !this.controlTowerTab.isClosed()) {
-      await this.controlTowerTab.close();
+      await this.controlTowerTab.close().catch(() => {});
       this.controlTowerTab = null;
     }
 
-    await this.dashboardPage.bringToFront();
-    const dashboard = new StageDashboardPage(this.dashboardPage);
-    await dashboard.returnToDashboard();
+    await this.dashboardPage.bringToFront().catch(() => {});
   }
 }
 

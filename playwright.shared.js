@@ -14,6 +14,8 @@ function createProdPlaywrightConfig(baseDir, deviceUse = {}) {
 
   const fast = isFastMode();
   const defaultWorkers = Number(process.env.PLAYWRIGHT_WORKERS || process.env.WORKERS) || 4;
+  const moduleProjectTimeout =
+    process.env.CI === 'true' ? Math.max(CASE_TIMEOUT_MS, 120000) : CASE_TIMEOUT_MS;
   const controlTowerFullyParallel = true;
   const prodModulesFullyParallel = true;
   const jsonReportFile =
@@ -63,6 +65,7 @@ function createProdPlaywrightConfig(baseDir, deviceUse = {}) {
         testMatch: '**/prod-modules/**/*.spec.js',
         grep: suiteGrep,
         fullyParallel: prodModulesFullyParallel,
+        timeout: moduleProjectTimeout,
         use: { ...projectUse, loginMethod: 'credentials' }
       },
       {
@@ -70,6 +73,7 @@ function createProdPlaywrightConfig(baseDir, deviceUse = {}) {
         testMatch: '**/prod-modules/**/*.spec.js',
         grep: suiteGrep,
         fullyParallel: prodModulesFullyParallel,
+        timeout: moduleProjectTimeout,
         use: { ...projectUse, loginMethod: 'badge' }
       },
       {

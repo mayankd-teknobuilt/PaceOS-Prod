@@ -12,14 +12,15 @@ function applyModulesCiDefaults() {
   }
 
   const paceEnv = (process.env.PACE_ENV || process.env.PACE_TEST_ENV || 'prod').trim().toLowerCase();
-  const defaults =
+  const workerDefault =
     paceEnv === 'dev3'
-      ? { ...CI_MODULES_ENV, PLAYWRIGHT_WORKERS: process.env.PLAYWRIGHT_WORKERS || '2' }
-      : { ...CI_MODULES_ENV };
+      ? process.env.CI_DEV3_MODULE_WORKERS || '2'
+      : process.env.CI_PROD_MODULE_WORKERS || '2';
+  const defaults = { ...CI_MODULES_ENV, PLAYWRIGHT_WORKERS: process.env.PLAYWRIGHT_WORKERS || workerDefault };
 
-  if (paceEnv === 'dev3') {
-    // Parallel module runs on dev3 share one tenant login; fewer workers avoids auth lock thrashing.
-    process.env.PLAYWRIGHT_WORKERS = process.env.CI_DEV3_MODULE_WORKERS || '2';
+  // One SSO account per job — cap workers so parallel specs do not invalidate each other's sessions.
+  if (!process.env.PLAYWRIGHT_WORKERS?.trim()) {
+    process.env.PLAYWRIGHT_WORKERS = workerDefault;
   }
 
   for (const [key, value] of Object.entries(defaults)) {

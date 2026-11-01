@@ -17,8 +17,12 @@ function applyControlTowerCiDefaults() {
   }
 
   const paceEnv = (process.env.PACE_ENV || process.env.PACE_TEST_ENV || 'prod').trim().toLowerCase();
-  if (paceEnv === 'dev3') {
-    process.env.PLAYWRIGHT_WORKERS = process.env.CI_DEV3_CT_WORKERS || '2';
+  const workerDefault =
+    paceEnv === 'dev3'
+      ? process.env.CI_DEV3_CT_WORKERS || '2'
+      : process.env.CI_PROD_CT_WORKERS || '2';
+  if (!process.env.PLAYWRIGHT_WORKERS?.trim()) {
+    process.env.PLAYWRIGHT_WORKERS = workerDefault;
   }
 
   for (const [key, value] of Object.entries(CI_CONTROL_TOWER_ENV)) {
