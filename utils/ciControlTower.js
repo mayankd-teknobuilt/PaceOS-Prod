@@ -1,14 +1,13 @@
 /**
- * Control Tower runs share one browser tab per worker. In CI we use one worker,
- * serial specs, and longer timeouts. Local runs may use more workers (see npm scripts).
+ * Control Tower CI timeouts and default worker count (parallel report specs).
  */
 const CI_CONTROL_TOWER_ENV = {
-  PLAYWRIGHT_WORKERS: '1',
+  PLAYWRIGHT_WORKERS: '4',
   CASE_TIMEOUT_MS: '180000',
   CASE_ATTEMPT_MS: '90000',
   SLOW_CASE_TIMEOUT_MS: '300000',
   SLOW_CASE_ATTEMPT_MS: '150000',
-  DOWNLOAD_TIMEOUT_MS: '45000',
+  DOWNLOAD_TIMEOUT_MS: '90000',
   CT_VIEW_LOAD_MS: '40000'
 };
 

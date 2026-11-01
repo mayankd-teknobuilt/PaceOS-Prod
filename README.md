@@ -78,7 +78,7 @@ npm run test:local:prod:headed
 npm run test:local:dev3
 ```
 
-Modules only / Control Tower only (CT uses 1 worker):
+Modules only / Control Tower only (4 workers each):
 
 ```powershell
 npm run test:dev3:modules
@@ -124,7 +124,7 @@ $env:PLAYWRIGHT_WORKERS='4'; npm run test:both:prod-first:headed
 | `npm run test:local:prod` | prod | All module + CT specs |
 | `npm run test:local:dev3` | dev3 | All module + CT specs |
 | `npm run test:prod:all` | prod | Same as local prod (no env validate) |
-| `npm run test:dev3:all:full` | dev3 | Modules (4 workers) then CT (1 worker) |
+| `npm run test:dev3:all:full` | dev3 | Modules (4 workers) then CT (4 workers) |
 
 ```bash
 # Production (default) — aliases
@@ -200,7 +200,7 @@ Registry: `testdata/control-tower/{project-libraries,standard-libraries,pms,lead
 npm run discover:dev3-control-tower-reports   # live UI → testdata/discovered-dev3-ct-reports.json
 npm run sync:dev3-control-tower-reports       # update registry + regenerate specs
 npm run validate:dev3-control-tower-registry  # offline check (also runs in dev3 CT CI job)
-npm run test:dev3:control-tower               # all 41 specs, 1 worker
+npm run test:dev3:control-tower               # all 41 specs, 4 workers
 ```
 
 Module smoke (opens CT once): `tests/prod-modules/All Modules/advanced-analytics.spec.js`.
@@ -214,11 +214,11 @@ Jenkins: `Jenkinsfile`
 
 | Layer | Modules (`prod-modules-email`) | Control Tower (`control-tower-reports-email`) |
 |-------|----------------------------------|-----------------------------------------------|
-| **Local** | Parallel (default 4 workers) | Parallel optional (`--workers=4` in npm scripts) |
-| **CI** | Parallel (4 workers), one auth per worker | **Serial**: 1 worker, `fullyParallel: false`, shared CT tab per run |
-| **Why** | Specs are isolated per module | Reports share filters/tabs; parallel CT causes flaky retries and session teardown |
+| **Local** | Parallel (default 4 workers) | Parallel (default 4 workers) |
+| **CI** | Parallel (4 workers), one auth per worker | Parallel (4 workers), one CT session per worker |
+| **Why** | Specs are isolated per module | Each worker owns a CT tab; longer timeouts in `utils/ciControlTower.js` |
 
-CI defaults for Control Tower live in `utils/ciControlTower.js` (timeouts, `PLAYWRIGHT_WORKERS=1`). Local `npm run test:ci:*:control-tower` uses the same values.
+CI defaults for Control Tower live in `utils/ciControlTower.js` (timeouts, `PLAYWRIGHT_WORKERS=4`). Local `npm run test:ci:*` uses the same worker count unless you override `PLAYWRIGHT_WORKERS`.
 
 ### When jobs run (GitHub Actions)
 
@@ -238,9 +238,9 @@ Tests run in **separate parallel jobs** per environment (never one mixed `PACE_E
 | Job | `PACE_ENV` | Workers (modules / CT) |
 |-----|------------|-------------------------|
 | Prod modules | `prod` | 4 / — |
-| Prod Control Tower | `prod` | — / **1 (serial)** |
+| Prod Control Tower | `prod` | — / **4** |
 | Dev3 modules | `dev3` | 4 / — |
-| Dev3 Control Tower | `dev3` | — / **1 (serial)** |
+| Dev3 Control Tower | `dev3` | — / **4** |
 
 Profile URLs and project context come from `config/environments.js` after `PACE_ENV` is set.
 

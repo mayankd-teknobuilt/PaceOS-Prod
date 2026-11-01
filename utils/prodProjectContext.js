@@ -36,6 +36,10 @@ async function selectFirstMatchingOrFirst(page, projectPage, step, names, select
 }
 
 async function selectProdProjectContext(page) {
+  if (page.isClosed()) {
+    throw new Error('Cannot select project context: page is closed.');
+  }
+
   const baseUrl = process.env.BASE_URL;
   const projectData = getProjectData();
   const context = {
@@ -44,6 +48,14 @@ async function selectProdProjectContext(page) {
     section: projectData.subModule,
     block: projectData.subSubModule
   };
+
+  if (await isProjectContextSet(page)) {
+    logger.info('Project context already set — skipping selection wizard.');
+    if (!/dashboard/i.test(page.url())) {
+      await safeGoto(page, new URL('/dashboard', baseUrl).toString());
+    }
+    return context;
+  }
 
   if (!/\/select-project/i.test(page.url())) {
     await safeGoto(page, new URL('/select-project', baseUrl).toString());

@@ -52,8 +52,57 @@ class ControlTowerReportsPage extends BasePage {
     return this.reportsPage.getByRole('tab', { name: label });
   }
 
-  optionLocator(optionName) {
-    return this.reportsPage.getByRole('option', { name: new RegExp(this.escapeRegex(optionName), 'i') }).first();
+  optionLocator(optionName, root = this.reportsPage) {
+    return root.getByRole('option', { name: new RegExp(this.escapeRegex(optionName), 'i') }).first();
+  }
+
+  async revealListboxOption(listbox, optionLabel) {
+    const option = this.optionLocator(optionLabel, listbox);
+
+    if (await option.isVisible().catch(() => false)) {
+      return option;
+    }
+
+    const filterText = optionLabel.replace(/\s+/g, ' ').trim();
+    if (filterText.length >= 4) {
+      await this.reportsPage.keyboard.type(filterText.slice(0, 24), { delay: 20 }).catch(() => {});
+      if (await option.isVisible().catch(() => false)) {
+        return option;
+      }
+    }
+
+    for (let attempt = 0; attempt < 14; attempt++) {
+      if (await option.isVisible().catch(() => false)) {
+        return option;
+      }
+
+      await listbox.evaluate(element => {
+        element.scrollTop += 240;
+      }).catch(() => {});
+      await this.reportsPage.keyboard.press('ArrowDown').catch(() => {});
+      await this.reportsPage.waitForTimeout(120);
+    }
+
+    return option;
+  }
+
+  async selectComboboxOption(combobox, optionLabel) {
+    await this.dismissOpenMenus();
+    await combobox.scrollIntoViewIfNeeded();
+    await combobox.click();
+
+    const listbox = this.openListbox;
+    await expect(listbox, `Report listbox did not open for "${optionLabel}".`).toBeVisible({
+      timeout: 15000
+    });
+
+    const option = await this.revealListboxOption(listbox, optionLabel);
+    await expect(option, `Report option "${optionLabel}" was not visible.`).toBeVisible({
+      timeout: 10000
+    });
+    await option.scrollIntoViewIfNeeded();
+    await option.click();
+    await this.dismissOpenMenus();
   }
 
   /** Main Intelligence report combobox (excludes pagination controls). */
@@ -308,8 +357,13 @@ class ControlTowerReportsPage extends BasePage {
   }
 
   async openTab(label, options = {}) {
+    await this.ensureControlTowerTabActive();
+    await expect(this.reportsPage.getByRole('tab').first(), 'Control Tower tabs did not load.').toBeVisible({
+      timeout: 30000
+    });
+
     const tab = this.tabLocator(label);
-    await expect(tab, `Tab "${label}" was not found.`).toBeVisible({ timeout: 20000 });
+    await expect(tab, `Tab "${label}" was not found.`).toBeVisible({ timeout: 30000 });
     const selected = (await tab.getAttribute('aria-selected')) === 'true';
     if (!selected) {
       await tab.click();
@@ -329,21 +383,9 @@ class ControlTowerReportsPage extends BasePage {
     await this.ensureControlTowerTabActive();
 
     await expect(async () => {
-      await this.dismissOpenMenus();
-
       const combobox = await this.findVisibleIntelligenceCombobox();
       expect(combobox, `Combobox not found for "${step.name}".`).toBeTruthy();
-
-      await combobox.scrollIntoViewIfNeeded();
-      await combobox.click();
-
-      const option = this.optionLocator(step.option);
-      await expect(option, `Report option "${step.option}" was not visible.`).toBeVisible({
-        timeout: 10000
-      });
-      await option.scrollIntoViewIfNeeded();
-      await option.click();
-      await this.dismissOpenMenus();
+      await this.selectComboboxOption(combobox, step.option);
     }).toPass({ timeout: CT_VIEW_LOAD_MS });
 
     if (options.setup) {

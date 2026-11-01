@@ -159,7 +159,11 @@ class StageDashboardPage extends BasePage {
   }
 
   async waitForDashboardReady() {
-    await this.page.waitForLoadState('domcontentloaded', { timeout: 30000 });
+    if (this.page.isClosed()) {
+      throw new Error('Cannot wait for dashboard: page is closed.');
+    }
+
+    await this.page.waitForLoadState('domcontentloaded', { timeout: 30000 }).catch(() => {});
 
     let onDashboard = DASHBOARD_PATH.test(this.page.url());
     let tabsVisible = await this.tabs.first().isVisible({ timeout: 5000 }).catch(() => false);

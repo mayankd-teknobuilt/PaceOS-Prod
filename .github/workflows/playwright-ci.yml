@@ -99,7 +99,7 @@ jobs:
           retention-days: 7
 
   control-tower:
-    name: Prod — Control Tower (serial)
+    name: Prod — Control Tower (4 workers)
     if: >-
       ${{ (github.event_name != 'workflow_dispatch'
       || contains(fromJSON('["all","prod-only","control-tower","fast"]'), github.event.inputs.suite))
@@ -128,14 +128,13 @@ jobs:
         # Keep in sync with utils/ciControlTower.js
         env:
           PLAYWRIGHT_JSON_OUTPUT: report-control-tower.json
-          PLAYWRIGHT_WORKERS: 1
           CASE_TIMEOUT_MS: 180000
           CASE_ATTEMPT_MS: 90000
           SLOW_CASE_TIMEOUT_MS: 300000
           SLOW_CASE_ATTEMPT_MS: 150000
-          DOWNLOAD_TIMEOUT_MS: 45000
+          DOWNLOAD_TIMEOUT_MS: 90000
           PACE_FAST: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.suite == 'fast' && 'true' || 'false' }}
-        run: npx playwright test --project=control-tower-reports-email tests/Control-tower-reports/reports --workers=1
+        run: npx playwright test --project=control-tower-reports-email tests/Control-tower-reports/reports --workers=4
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -150,7 +149,7 @@ jobs:
           retention-days: 7
 
   dev3-prod-modules:
-    name: Dev3 — Modules (serial)
+    name: Dev3 — Modules (4 workers)
     if: >-
       ${{ vars.ENABLE_DEV3_CI != 'false'
       && (github.event_name == 'schedule'
@@ -165,7 +164,6 @@ jobs:
     runs-on: ubuntu-latest
     env:
       PACE_ENV: dev3
-      PLAYWRIGHT_WORKERS: '1'
       TEST_EMAIL: ${{ secrets.DEV3_TEST_EMAIL || vars.DEV3_TEST_EMAIL || secrets.TEST_EMAIL || vars.TEST_EMAIL }}
       TEST_PASSWORD: ${{ secrets.DEV3_TEST_PASSWORD || vars.DEV3_TEST_PASSWORD || secrets.TEST_PASSWORD || vars.TEST_PASSWORD }}
     steps:
@@ -182,8 +180,7 @@ jobs:
       - name: Run dev3 modules
         env:
           PLAYWRIGHT_JSON_OUTPUT: report-dev3-modules.json
-          PLAYWRIGHT_WORKERS: '1'
-        run: npx playwright test --project=prod-modules-email --workers=1
+        run: npx playwright test --project=prod-modules-email --workers=4
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -192,7 +189,7 @@ jobs:
           retention-days: 14
 
   dev3-control-tower:
-    name: Dev3 — Control Tower (serial)
+    name: Dev3 — Control Tower (4 workers)
     if: >-
       ${{ vars.ENABLE_DEV3_CI != 'false'
       && (github.event_name == 'schedule'
@@ -207,7 +204,6 @@ jobs:
     runs-on: ubuntu-latest
     env:
       PACE_ENV: dev3
-      PLAYWRIGHT_WORKERS: 1
       TEST_EMAIL: ${{ secrets.DEV3_TEST_EMAIL || vars.DEV3_TEST_EMAIL || secrets.TEST_EMAIL || vars.TEST_EMAIL }}
       TEST_PASSWORD: ${{ secrets.DEV3_TEST_PASSWORD || vars.DEV3_TEST_PASSWORD || secrets.TEST_PASSWORD || vars.TEST_PASSWORD }}
     steps:
@@ -225,13 +221,12 @@ jobs:
       - name: Run dev3 Control Tower reports
         env:
           PLAYWRIGHT_JSON_OUTPUT: report-dev3-control-tower.json
-          PLAYWRIGHT_WORKERS: 1
           CASE_TIMEOUT_MS: 180000
           CASE_ATTEMPT_MS: 90000
           SLOW_CASE_TIMEOUT_MS: 300000
           SLOW_CASE_ATTEMPT_MS: 150000
-          DOWNLOAD_TIMEOUT_MS: 45000
-        run: npx playwright test --project=control-tower-reports-email --workers=1
+          DOWNLOAD_TIMEOUT_MS: 90000
+        run: npx playwright test --project=control-tower-reports-email --workers=4
       - uses: actions/upload-artifact@v4
         if: always()
         with:

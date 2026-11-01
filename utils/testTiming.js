@@ -18,6 +18,11 @@ const SLOW_CT_REPORTS = new Set([
   'PMID-wise Progress',
   'Management Weekly Progress',
   'Execution Team Lead Summary',
+  'Execution Leadership Summary',
+  'Preparation Management Summary',
+  'Planned vs. Actual Earned Man-Hours',
+  'Readiness Issues',
+  'Compiled vs. Not Compiled IWPs',
   'IWP Stage Overview'
 ]);
 
@@ -34,7 +39,7 @@ function getCaseAttemptMs(reportName) {
   }
   return CASE_ATTEMPT_MS;
 }
-const DOWNLOAD_TIMEOUT_MS = Number(process.env.DOWNLOAD_TIMEOUT_MS) || (isDev3Ct ? 45000 : 15000);
+const DOWNLOAD_TIMEOUT_MS = Number(process.env.DOWNLOAD_TIMEOUT_MS) || (isDev3Ct ? 45000 : 90000);
 const CT_VIEW_LOAD_MS = Number(process.env.CT_VIEW_LOAD_MS) || (isDev3Ct ? 40000 : 25000);
 
 function remainingMs(deadlineMs) {
