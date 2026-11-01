@@ -78,7 +78,10 @@ async function bootstrapProdSession(page, loginMethod, baseUrl, workerIndex = 0)
     }
 
     const dashboard = new StageDashboardPage(page);
-    await dashboard.returnToDashboard();
+    if (!/dashboard/i.test(page.url())) {
+      await safeGoto(page, new URL('/dashboard', baseUrl).toString());
+    }
+    await dashboard.waitForDashboardReady();
     await assertAuthenticatedDashboard(page, workerLabel);
     await page.context().storageState({ path: storagePath });
     authenticatedOnCurrentPage = true;

@@ -3,7 +3,7 @@ const { isFastMode } = require('./utils/fastMode');
 const { loadProdEnv } = require('./utils/loadEnv');
 const { CASE_TIMEOUT_MS } = require('./utils/testTiming');
 const { getPlaywrightEnvGrep, combineGrepPatterns } = require('./utils/envTestFilter');
-const { isDev3ModulesSerialCi, applyModulesCiDefaults } = require('./utils/ciModules');
+const { applyModulesCiDefaults } = require('./utils/ciModules');
 
 /**
  * Shared production Playwright options (no @playwright/test import here).
@@ -14,8 +14,10 @@ function createProdPlaywrightConfig(baseDir, deviceUse = {}) {
 
   const fast = isFastMode();
   const defaultWorkers = Number(process.env.PLAYWRIGHT_WORKERS || process.env.WORKERS) || 4;
-  const controlTowerFullyParallel = process.env.CI !== 'true';
-  const prodModulesFullyParallel = !isDev3ModulesSerialCi();
+  const moduleProjectTimeout =
+    process.env.CI === 'true' ? Math.max(CASE_TIMEOUT_MS, 120000) : CASE_TIMEOUT_MS;
+  const controlTowerFullyParallel = true;
+  const prodModulesFullyParallel = true;
   const jsonReportFile =
     process.env.PLAYWRIGHT_JSON_OUTPUT || 'report.json';
   const baseURL = process.env.BASE_URL;
@@ -63,6 +65,7 @@ function createProdPlaywrightConfig(baseDir, deviceUse = {}) {
         testMatch: '**/prod-modules/**/*.spec.js',
         grep: suiteGrep,
         fullyParallel: prodModulesFullyParallel,
+        timeout: moduleProjectTimeout,
         use: { ...projectUse, loginMethod: 'credentials' }
       },
       {
@@ -70,6 +73,7 @@ function createProdPlaywrightConfig(baseDir, deviceUse = {}) {
         testMatch: '**/prod-modules/**/*.spec.js',
         grep: suiteGrep,
         fullyParallel: prodModulesFullyParallel,
+        timeout: moduleProjectTimeout,
         use: { ...projectUse, loginMethod: 'badge' }
       },
       {

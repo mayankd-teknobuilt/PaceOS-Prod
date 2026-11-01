@@ -1,4 +1,4 @@
-﻿# PACE Production QA Framework
+# PACE Production QA Framework
 
 Playwright Page Object Model framework for dashboard modules and Control Tower reports across multiple PACE environments.
 
@@ -78,7 +78,7 @@ npm run test:local:prod:headed
 npm run test:local:dev3
 ```
 
-Modules only / Control Tower only (CT uses 1 worker):
+Modules only / Control Tower only (4 workers each):
 
 ```powershell
 npm run test:dev3:modules
@@ -124,7 +124,7 @@ $env:PLAYWRIGHT_WORKERS='4'; npm run test:both:prod-first:headed
 | `npm run test:local:prod` | prod | All module + CT specs |
 | `npm run test:local:dev3` | dev3 | All module + CT specs |
 | `npm run test:prod:all` | prod | Same as local prod (no env validate) |
-| `npm run test:dev3:all:full` | dev3 | Modules (4 workers) then CT (1 worker) |
+| `npm run test:dev3:all:full` | dev3 | Modules (4 workers) then CT (4 workers) |
 
 ```bash
 # Production (default) — aliases
@@ -182,25 +182,25 @@ On **dev3**, Control Tower opens from the dashboard module **Advanced Analytics*
 - `PROD_CONTROL_TOWER_TAB=Advanced Project Engineering`
 - `CONTROL_TOWER_PORTFOLIO_URL=https://dev-in-controltower.pace-os.com/#/portfolio?page=1`
 
-**41 Intelligence reports** are automated (one Playwright spec each), grouped by CT tab:
+**76 dev3 Intelligence reports** (one spec each: open tab → Lower/Middle/Higher Management when present → select report → CSV download when data exists):
 
-| Tab | Reports | npm (dev3) |
-|-----|---------|------------|
-| Project Libraries | 20 | `npm run test:dev3:ct:project-libraries` |
-| Standard Libraries | 6 | `npm run test:dev3:ct:standard-libraries` |
-| PMS | 1 | `npm run test:dev3:ct:pms` |
-| Leading Indicators | 14 | `npm run test:dev3:ct:leading-indicators` |
-| Lagging Indicators | 0 on tenant | — (nothing to automate yet) |
+| Tab | Reports | Management sections |
+|-----|---------|---------------------|
+| Project Libraries | 20 | — |
+| Standard Libraries | 6 | — |
+| PMS | 1 | — |
+| Leading Indicators | **36** | Lower (14), Middle (19), Higher (3) |
+| Lagging Indicators | **13** (Lower 6, Middle 5, Higher 2) | From codegen / registry; re-run discovery to refresh |
 
-Registry: `testdata/control-tower/{project-libraries,standard-libraries,pms,leading-indicators}.js` (`prodEnabled: false`, `enabledEnvs: ['dev3']`). Prod-only tabs (Project Progress, Execution Overview, Health And Safety, JIM) are **skipped** when `PACE_ENV=dev3`.
+Leading/Lagging use **Lower / Middle / Higher Management** controls (tabs or buttons). Tests use names like `Middle Management — CWP Analytics` so duplicates across sections stay unique.
 
-**Refresh when the tenant adds reports:**
+Discovery scrolls the full Intelligence dropdown (virtual list) so no options are missed. Refresh when the tenant adds reports:
 
 ```bash
 npm run discover:dev3-control-tower-reports   # live UI → testdata/discovered-dev3-ct-reports.json
 npm run sync:dev3-control-tower-reports       # update registry + regenerate specs
 npm run validate:dev3-control-tower-registry  # offline check (also runs in dev3 CT CI job)
-npm run test:dev3:control-tower               # all 41 specs, 1 worker
+npm run test:dev3:control-tower               # all 76 dev3 specs, 4 workers
 ```
 
 Module smoke (opens CT once): `tests/prod-modules/All Modules/advanced-analytics.spec.js`.
@@ -214,11 +214,11 @@ Jenkins: `Jenkinsfile`
 
 | Layer | Modules (`prod-modules-email`) | Control Tower (`control-tower-reports-email`) |
 |-------|----------------------------------|-----------------------------------------------|
-| **Local** | Parallel (default 4 workers) | Parallel optional (`--workers=4` in npm scripts) |
-| **CI** | Parallel (4 workers), one auth per worker | **Serial**: 1 worker, `fullyParallel: false`, shared CT tab per run |
-| **Why** | Specs are isolated per module | Reports share filters/tabs; parallel CT causes flaky retries and session teardown |
+| **Local** | Parallel (default 4 workers) | Parallel (default 4 workers) |
+| **CI** | Parallel (4 workers), one auth per worker | Parallel (4 workers), one CT session per worker |
+| **Why** | Specs are isolated per module | Each worker owns a CT tab; longer timeouts in `utils/ciControlTower.js` |
 
-CI defaults for Control Tower live in `utils/ciControlTower.js` (timeouts, `PLAYWRIGHT_WORKERS=1`). Local `npm run test:ci:*:control-tower` uses the same values.
+CI defaults for Control Tower live in `utils/ciControlTower.js` (timeouts, `PLAYWRIGHT_WORKERS=4`). Local `npm run test:ci:*` uses the same worker count unless you override `PLAYWRIGHT_WORKERS`.
 
 ### When jobs run (GitHub Actions)
 
@@ -238,9 +238,9 @@ Tests run in **separate parallel jobs** per environment (never one mixed `PACE_E
 | Job | `PACE_ENV` | Workers (modules / CT) |
 |-----|------------|-------------------------|
 | Prod modules | `prod` | 4 / — |
-| Prod Control Tower | `prod` | — / **1 (serial)** |
+| Prod Control Tower | `prod` | — / **4** |
 | Dev3 modules | `dev3` | 4 / — |
-| Dev3 Control Tower | `dev3` | — / **1 (serial)** |
+| Dev3 Control Tower | `dev3` | — / **4** |
 
 Profile URLs and project context come from `config/environments.js` after `PACE_ENV` is set.
 

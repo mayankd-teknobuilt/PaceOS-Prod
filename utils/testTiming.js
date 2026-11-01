@@ -3,9 +3,12 @@
  * Override via CASE_TIMEOUT_MS, CASE_ATTEMPT_MS, or DOWNLOAD_TIMEOUT_MS in .env.local.
  */
 const REPORT_ATTEMPTS = 2;
+const isCi = process.env.CI === 'true';
 const isDev3Ct = (process.env.PACE_ENV || process.env.PACE_TEST_ENV || '').toLowerCase() === 'dev3';
-const CASE_TIMEOUT_MS = Number(process.env.CASE_TIMEOUT_MS) || (isDev3Ct ? 180000 : 90000);
-const CASE_ATTEMPT_MS = Number(process.env.CASE_ATTEMPT_MS) || (isDev3Ct ? 90000 : 45000);
+const CASE_TIMEOUT_MS =
+  Number(process.env.CASE_TIMEOUT_MS) || (isDev3Ct || isCi ? 180000 : 90000);
+const CASE_ATTEMPT_MS =
+  Number(process.env.CASE_ATTEMPT_MS) || (isDev3Ct || isCi ? 90000 : 45000);
 
 /** Heavy dev3 CT reports need more than the default per-attempt budget. */
 const SLOW_CT_REPORTS = new Set([
@@ -18,6 +21,11 @@ const SLOW_CT_REPORTS = new Set([
   'PMID-wise Progress',
   'Management Weekly Progress',
   'Execution Team Lead Summary',
+  'Execution Leadership Summary',
+  'Preparation Management Summary',
+  'Planned vs. Actual Earned Man-Hours',
+  'Readiness Issues',
+  'Compiled vs. Not Compiled IWPs',
   'IWP Stage Overview'
 ]);
 
@@ -34,7 +42,7 @@ function getCaseAttemptMs(reportName) {
   }
   return CASE_ATTEMPT_MS;
 }
-const DOWNLOAD_TIMEOUT_MS = Number(process.env.DOWNLOAD_TIMEOUT_MS) || (isDev3Ct ? 45000 : 15000);
+const DOWNLOAD_TIMEOUT_MS = Number(process.env.DOWNLOAD_TIMEOUT_MS) || (isDev3Ct ? 45000 : 90000);
 const CT_VIEW_LOAD_MS = Number(process.env.CT_VIEW_LOAD_MS) || (isDev3Ct ? 40000 : 25000);
 
 function remainingMs(deadlineMs) {

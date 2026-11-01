@@ -36,6 +36,10 @@ async function selectFirstMatchingOrFirst(page, projectPage, step, names, select
 }
 
 async function selectProdProjectContext(page) {
+  if (page.isClosed()) {
+    throw new Error('Cannot select project context: page is closed.');
+  }
+
   const baseUrl = process.env.BASE_URL;
   const projectData = getProjectData();
   const context = {
@@ -45,9 +49,27 @@ async function selectProdProjectContext(page) {
     block: projectData.subSubModule
   };
 
+  if (await isProjectContextSet(page)) {
+    logger.info('Project context already set — skipping selection wizard.');
+    if (!/dashboard/i.test(page.url())) {
+      await safeGoto(page, new URL('/dashboard', baseUrl).toString());
+    }
+    return context;
+  }
+
   if (!/\/select-project/i.test(page.url())) {
     await safeGoto(page, new URL('/select-project', baseUrl).toString());
   }
+
+  await page.waitForLoadState('domcontentloaded', { timeout: 30000 }).catch(() => {});
+  await page.waitForURL(/select-project/i, { timeout: 30000 }).catch(() => {});
+
+  const projectPage = new ProjectPage(page);
+  await projectPage.dismissCookieBanner();
+  await projectPage.projectCards
+    .first()
+    .waitFor({ state: 'visible', timeout: 45000 })
+    .catch(() => {});
 
   const selectProjectDeadline = Date.now() + 60000;
   while (!/\/select-project/i.test(page.url()) && Date.now() < selectProjectDeadline) {
@@ -63,7 +85,6 @@ async function selectProdProjectContext(page) {
     throw new Error(`Project selection page did not load (current URL: ${page.url()})`);
   }
 
-  const projectPage = new ProjectPage(page);
   const cardIndex = Number(process.env.PROD_PROJECT_CARD_INDEX || 0);
   const projectCode = process.env.PROD_PROJECT_CODE?.trim() || '';
 

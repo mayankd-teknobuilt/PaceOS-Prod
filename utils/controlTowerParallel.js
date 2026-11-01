@@ -37,6 +37,33 @@ function buildReportTestCases(category, { includeTrendViews = false } = {}) {
     return cases;
   }
 
+  if (setupMode === 'management-sections') {
+    const preamble = [...setupSteps];
+
+    for (const step of category.steps) {
+      if (step.type === 'button') {
+        preamble.push(step);
+        continue;
+      }
+
+      const caseSetup = [...preamble];
+      if (step.managementTab) {
+        caseSetup.push({ type: 'managementTab', label: step.managementTab });
+      }
+
+      cases.push({
+        id: `${category.slug}::${step.name}`,
+        categorySlug: category.slug,
+        categoryName: category.name,
+        reportName: step.name,
+        setupSteps: caseSetup,
+        reportStep: step
+      });
+    }
+
+    return cases;
+  }
+
   if (setupMode === 'minimal') {
     const preamble = [...setupSteps];
 

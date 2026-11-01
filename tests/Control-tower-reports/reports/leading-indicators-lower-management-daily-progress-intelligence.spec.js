@@ -2,4 +2,4 @@ const { test } = require('../../../utils/controlTowerFixture');
 const { registerSingleReportTest } = require('../../../utils/controlTowerSpec');
 const category = require('../../../testdata/control-tower/leading-indicators');
 
-registerSingleReportTest(test, category, "Progress Measurement System");
+registerSingleReportTest(test, category, "Lower Management — Daily Progress Intelligence");

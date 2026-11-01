@@ -80,7 +80,7 @@ const MODULE_REGISTRY = [
     tabIndex: 3,
     tabName: 'PACE Administration',
     moduleIndex: 2,
-    urlPattern: /invite|user-invite|invitation/i,
+    urlPattern: /invite|user-invite|invitation|invitelist/i,
     enabledEnvs: ['prod', 'dev3']
   }),
   entry({
@@ -88,6 +88,7 @@ const MODULE_REGISTRY = [
     tabIndex: 3,
     tabName: 'PACE Administration',
     moduleIndex: 3,
+    urlPattern: /\/companies\//i,
     enabledEnvs: ['prod', 'dev3']
   }),
   entry({
@@ -103,6 +104,7 @@ const MODULE_REGISTRY = [
     tabIndex: 3,
     tabName: 'PACE Administration',
     moduleIndex: 5,
+    urlPattern: /\/department/i,
     enabledEnvs: ['prod', 'dev3']
   }),
   entry({
@@ -110,6 +112,7 @@ const MODULE_REGISTRY = [
     tabIndex: 3,
     tabName: 'PACE Administration',
     moduleIndex: 6,
+    urlPattern: /operating|location/i,
     enabledEnvs: ['prod', 'dev3']
   }),
   entry({
@@ -122,11 +125,32 @@ const MODULE_REGISTRY = [
   }),
 
   // --- dev3 only (ASP dashboard) ---
-  entry({ moduleName: 'Geo Plot Manager', tabIndex: 0, tabName: 'Advanced Project Engineering', moduleIndex: 0, enabledEnvs: ['dev3'] }),
-  entry({ moduleName: 'Geo Plot Radar', tabIndex: 0, tabName: 'Advanced Project Engineering', moduleIndex: 1, enabledEnvs: ['dev3'] }),
+  entry({
+    moduleName: 'Geo Plot Manager',
+    tabIndex: 0,
+    tabName: 'Advanced Project Engineering',
+    moduleIndex: 0,
+    urlPattern: /dev-gis\.pace-os\.com/i,
+    enabledEnvs: ['dev3']
+  }),
+  entry({
+    moduleName: 'Geo Plot Radar',
+    tabIndex: 0,
+    tabName: 'Advanced Project Engineering',
+    moduleIndex: 1,
+    urlPattern: /dev-gis\.pace-os\.com/i,
+    enabledEnvs: ['dev3']
+  }),
   entry({ moduleName: 'APE Digital Control Tower', tabIndex: 0, tabName: 'Advanced Project Engineering', moduleIndex: 2, enabledEnvs: ['dev3'] }),
   entry({ moduleName: 'Advanced Analytics', tabIndex: 0, tabName: 'Advanced Project Engineering', moduleIndex: 3, enabledEnvs: ['dev3'] }),
-  entry({ moduleName: 'Information Management', tabIndex: 0, tabName: 'Advanced Project Engineering', moduleIndex: 4, enabledEnvs: ['dev3'] }),
+  entry({
+    moduleName: 'Information Management',
+    tabIndex: 0,
+    tabName: 'Advanced Project Engineering',
+    moduleIndex: 4,
+    urlPattern: /teknobuilt\.com|information|document/i,
+    enabledEnvs: ['dev3']
+  }),
   entry({ moduleName: 'Engineering Work Package', tabIndex: 0, tabName: 'Advanced Project Engineering', moduleIndex: 5, enabledEnvs: ['dev3'] }),
   entry({ moduleName: 'Construction Work Package', tabIndex: 0, tabName: 'Advanced Project Engineering', moduleIndex: 6, enabledEnvs: ['dev3'] }),
   entry({ moduleName: 'Installation Work Package', tabIndex: 0, tabName: 'Advanced Project Engineering', moduleIndex: 7, enabledEnvs: ['dev3'] }),

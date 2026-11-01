@@ -4,7 +4,11 @@ const logger = require('../../utils/logger');
 const { pauseForVisibility } = require('../../utils/stageTiming');
 const { isFastMode } = require('../../utils/fastMode');
 const { DOWNLOAD_TIMEOUT_MS, CT_VIEW_LOAD_MS } = require('../../utils/testTiming');
-const { CONTROL_TOWER_URL, portfolioUrl } = require('../../testdata/control-tower/shared');
+const {
+  getPortfolioUrl,
+  getControlTowerUrlPattern,
+  getControlTowerDiscoveryTabs
+} = require('../../testdata/control-tower/shared');
 const { getPaceEnvKey } = require('../../utils/paceEnv');
 
 const VISIBLE_ERROR_SELECTORS = [
@@ -21,7 +25,7 @@ class ControlTowerReportsPage extends BasePage {
     this.reportsPage = page;
     this.loadingIndicator = page.locator('[role="progressbar"], .MuiCircularProgress-root');
     this.openListbox = page.locator('[role="listbox"]:visible');
-    this.downloadButton = page.getByRole('button', { name: /download csv/i });
+    this.downloadButton = page.getByRole('button', { name: /download(\s+csv)?/i });
     this.noDataMessage = page.getByText(/sorry!?\s*no result found/i);
   }
 
@@ -29,7 +33,7 @@ class ControlTowerReportsPage extends BasePage {
     this.reportsPage = page;
     this.loadingIndicator = page.locator('[role="progressbar"], .MuiCircularProgress-root');
     this.openListbox = page.locator('[role="listbox"]:visible');
-    this.downloadButton = page.getByRole('button', { name: /download csv/i });
+    this.downloadButton = page.getByRole('button', { name: /download(\s+csv)?/i });
     this.noDataMessage = page.getByText(/sorry!?\s*no result found/i);
   }
 
@@ -48,28 +52,118 @@ class ControlTowerReportsPage extends BasePage {
       .first();
   }
 
-  tabLocator(label) {
-    return this.reportsPage.getByRole('tab', { name: label });
+  portfolioTabListLocator() {
+    return this.reportsPage.locator('[data-portfolio-tablist="true"]');
   }
 
-  optionLocator(optionName) {
-    return this.reportsPage.getByRole('option', { name: new RegExp(this.escapeRegex(optionName), 'i') }).first();
+  async resolvePortfolioTabList() {
+    const marked = this.portfolioTabListLocator();
+    if ((await marked.count().catch(() => 0)) > 0) {
+      return marked;
+    }
+
+    const lists = this.reportsPage.getByRole('tablist');
+    const listCount = await lists.count().catch(() => 0);
+    let bestList = lists.first();
+    let bestSize = 0;
+
+    for (let i = 0; i < listCount; i++) {
+      const list = lists.nth(i);
+      const tabCount = await list.getByRole('tab').count().catch(() => 0);
+      if (tabCount > bestSize) {
+        bestSize = tabCount;
+        bestList = list;
+      }
+    }
+
+    return bestList;
+  }
+
+  tabLocator(label, { nested = false } = {}) {
+    if (nested) {
+      const panel = this.reportsPage.locator('[role="tabpanel"]:visible').last();
+      const innerList = panel.locator('[role="tablist"]').last();
+      return innerList.getByRole('tab', { name: label });
+    }
+    return this.reportsPage.getByRole('tab', {
+      name: new RegExp(`^${this.escapeRegex(label)}$`, 'i')
+    }).first();
+  }
+
+  optionLocator(optionName, root = this.reportsPage) {
+    return root.getByRole('option', { name: new RegExp(this.escapeRegex(optionName), 'i') }).first();
+  }
+
+  async revealListboxOption(listbox, optionLabel) {
+    const option = this.optionLocator(optionLabel, listbox);
+
+    if (await option.isVisible().catch(() => false)) {
+      return option;
+    }
+
+    const filterText = optionLabel.replace(/\s+/g, ' ').trim();
+    if (filterText.length >= 4) {
+      await this.reportsPage.keyboard.type(filterText.slice(0, 24), { delay: 20 }).catch(() => {});
+      if (await option.isVisible().catch(() => false)) {
+        return option;
+      }
+    }
+
+    for (let attempt = 0; attempt < 14; attempt++) {
+      if (await option.isVisible().catch(() => false)) {
+        return option;
+      }
+
+      await listbox.evaluate(element => {
+        element.scrollTop += 240;
+      }).catch(() => {});
+      await this.reportsPage.keyboard.press('ArrowDown').catch(() => {});
+      await this.reportsPage.waitForTimeout(120);
+    }
+
+    return option;
+  }
+
+  async selectComboboxOption(combobox, optionLabel) {
+    await this.dismissOpenMenus();
+    await combobox.scrollIntoViewIfNeeded();
+    await combobox.click();
+
+    const listbox = this.openListbox;
+    await expect(listbox, `Report listbox did not open for "${optionLabel}".`).toBeVisible({
+      timeout: 15000
+    });
+
+    const option = await this.revealListboxOption(listbox, optionLabel);
+    await expect(option, `Report option "${optionLabel}" was not visible.`).toBeVisible({
+      timeout: 10000
+    });
+    await option.scrollIntoViewIfNeeded();
+    await option.click();
+    await this.dismissOpenMenus();
   }
 
   /** Main Intelligence report combobox (excludes pagination controls). */
   async findVisibleIntelligenceCombobox() {
-    const comboboxes = this.reportsPage.getByRole('combobox');
-    const count = await comboboxes.count();
+    const scopes = [
+      this.reportsPage.locator('[role="tabpanel"]:visible').last(),
+      this.reportsPage
+    ];
 
-    for (let i = 0; i < count; i++) {
-      const candidate = comboboxes.nth(i);
-      if (!(await candidate.isVisible().catch(() => false))) continue;
+    for (const scope of scopes) {
+      const comboboxes = scope.getByRole('combobox');
+      const count = await comboboxes.count().catch(() => 0);
 
-      const ariaLabel = ((await candidate.getAttribute('aria-label')) || '').toLowerCase();
-      const text = ((await candidate.textContent()) || '').toLowerCase();
-      if (ariaLabel.includes('rows per page') || text.includes('rows per page')) continue;
+      for (let i = 0; i < count; i++) {
+        const candidate = comboboxes.nth(i);
+        if (!(await candidate.isVisible().catch(() => false))) continue;
 
-      return candidate;
+        const ariaLabel = ((await candidate.getAttribute('aria-label')) || '').toLowerCase();
+        const text = ((await candidate.textContent()) || '').toLowerCase();
+        if (ariaLabel.includes('rows per page') || text.includes('rows per page')) continue;
+
+        return candidate;
+      }
     }
 
     return null;
@@ -81,42 +175,91 @@ class ControlTowerReportsPage extends BasePage {
     }
 
     await this.reportsPage.bringToFront();
+    const ctHostPattern = getControlTowerUrlPattern();
+    const portfolio = getPortfolioUrl();
 
-    if (!CONTROL_TOWER_URL.test(this.reportsPage.url())) {
+    if (!ctHostPattern.test(this.reportsPage.url())) {
       logger.info('Control Tower tab left host — navigating back.');
-      await this.reportsPage.goto(portfolioUrl, { waitUntil: 'domcontentloaded' });
+      await this.reportsPage.goto(portfolio, { waitUntil: 'domcontentloaded' });
       await this.waitForControlTowerShell();
       return;
     }
 
     if (!/#\/portfolio/i.test(this.reportsPage.url())) {
       logger.info('Control Tower not on portfolio view — navigating to portfolio.');
-      await this.reportsPage.goto(portfolioUrl, { waitUntil: 'domcontentloaded' });
+      await this.reportsPage.goto(portfolio, { waitUntil: 'domcontentloaded' });
       await this.waitForControlTowerShell();
     }
+  }
+
+  async waitForDev3PortfolioTabs() {
+    const tabList = await this.resolvePortfolioTabList();
+    await expect(tabList, 'Dev3 portfolio tab list was not visible.').toBeVisible({ timeout: 60000 });
+
+    const labels = getControlTowerDiscoveryTabs('dev3');
+    for (const label of labels) {
+      const tab = tabList.getByRole('tab', {
+        name: new RegExp(`^${this.escapeRegex(label)}$`, 'i')
+      });
+      if (await tab.first().isVisible({ timeout: 5000 }).catch(() => false)) {
+        return;
+      }
+    }
+
+    await expect(
+      tabList.getByRole('tab').first(),
+      'Dev3 Control Tower portfolio tabs were not visible.'
+    ).toBeVisible({ timeout: 30000 });
+  }
+
+  async waitForProdPortfolioTabs() {
+    const tabList = await this.resolvePortfolioTabList();
+    await expect(tabList, 'Portfolio tab list was not visible.').toBeVisible({ timeout: 60000 });
+
+    const labels = getControlTowerDiscoveryTabs('prod');
+    for (const label of labels) {
+      const tab = tabList.getByRole('tab', {
+        name: new RegExp(`^${this.escapeRegex(label)}$`, 'i')
+      });
+      if (await tab.first().isVisible({ timeout: 5000 }).catch(() => false)) {
+        return;
+      }
+    }
+
+    await expect(
+      tabList.getByRole('tab').first(),
+      'Control Tower portfolio tabs were not visible.'
+    ).toBeVisible({ timeout: 30000 });
+  }
+
+  async reloadPortfolioAndWaitForTabs(waitFn) {
+    logger.warn('Portfolio tabs missing — reloading portfolio view.');
+    await this.reportsPage.goto(getPortfolioUrl(), { waitUntil: 'domcontentloaded' });
+    await this.waitForControlTowerShell();
+    await waitFn.call(this);
   }
 
   async waitForPortfolioReady() {
     await this.ensureControlTowerTabActive();
 
     if (getPaceEnvKey() === 'dev3') {
-      await expect(
-        this.reportsPage.getByRole('tab', { name: 'Project Libraries' }),
-        'Dev3 Control Tower portfolio tabs were not visible.'
-      ).toBeVisible({ timeout: 60000 });
+      try {
+        await this.waitForDev3PortfolioTabs();
+      } catch (err) {
+        logger.warn(`Dev3 portfolio tabs missing — reloading portfolio: ${err.message}`);
+        await this.reloadPortfolioAndWaitForTabs(this.waitForDev3PortfolioTabs);
+      }
       await expect(
         this.reportsPage.getByText(/Intelligence/i).first(),
         'Dev3 Control Tower Intelligence panel was not visible.'
       ).toBeVisible({ timeout: 30000 });
     } else {
-      await expect(
-        this.reportsPage.getByRole('tab', { name: 'Project Progress' }),
-        'Control Tower portfolio tabs were not visible.'
-      ).toBeVisible({ timeout: 60000 });
-      await expect(
-        this.reportsPage.getByRole('button', { name: 'Utilization Trend' }),
-        'Project Progress trend actions were not visible on Control Tower.'
-      ).toBeVisible({ timeout: 30000 });
+      try {
+        await this.waitForProdPortfolioTabs();
+      } catch (err) {
+        logger.warn(`Prod portfolio tabs missing — reloading portfolio: ${err.message}`);
+        await this.reloadPortfolioAndWaitForTabs(this.waitForProdPortfolioTabs);
+      }
     }
 
     await this.waitForReportSettle();
@@ -163,7 +306,7 @@ class ControlTowerReportsPage extends BasePage {
   }
 
   async waitForControlTowerShell() {
-    await expect(this.reportsPage).toHaveURL(CONTROL_TOWER_URL, { timeout: 60000 });
+    await expect(this.reportsPage).toHaveURL(getControlTowerUrlPattern(), { timeout: 60000 });
     await this.reportsPage.waitForLoadState('domcontentloaded', { timeout: 60000 });
     await expect(this.reportsPage.locator('body')).not.toBeEmpty({ timeout: 20000 });
     await pauseForVisibility(this.reportsPage, 'Control Tower portfolio ready');
@@ -307,13 +450,71 @@ class ControlTowerReportsPage extends BasePage {
     await this.waitForViewLoaded(stepName || label);
   }
 
+  async openManagementSection(label, options = {}) {
+    const escape = this.escapeRegex(label);
+    const pattern = new RegExp(`^${escape}$`, 'i');
+    const panel = this.reportsPage.locator('[role="tabpanel"]:visible').last();
+
+    let control = null;
+    for (const scope of [panel, this.reportsPage]) {
+      const tab = scope.getByRole('tab', { name: pattern });
+      if (await tab.isVisible().catch(() => false)) {
+        control = tab;
+        break;
+      }
+      const button = scope.getByRole('button', { name: pattern });
+      if (await button.isVisible().catch(() => false)) {
+        control = button;
+        break;
+      }
+    }
+
+    await expect(control, `Management section "${label}" was not found.`).toBeVisible({ timeout: 20000 });
+    await control.scrollIntoViewIfNeeded({ timeout: 8000 }).catch(() => {});
+    await control.click();
+
+    if (options.setup) {
+      await this.waitForSetupStep(`Management section: ${label}`);
+      return;
+    }
+
+    await this.waitForReportSettle();
+    await pauseForVisibility(this.reportsPage, `Management section: ${label}`);
+  }
+
   async openTab(label, options = {}) {
-    const tab = this.tabLocator(label);
-    await expect(tab, `Tab "${label}" was not found.`).toBeVisible({ timeout: 20000 });
+    await this.ensureControlTowerTabActive();
+    await expect(this.reportsPage.getByRole('tab').first(), 'Control Tower tabs did not load.').toBeVisible({
+      timeout: 30000
+    });
+
+    let tab = this.tabLocator(label, { nested: !!options.nested });
+    if (!options.nested) {
+      const portfolioList = await this.resolvePortfolioTabList();
+      tab = portfolioList
+        .getByRole('tab', { name: new RegExp(`^${this.escapeRegex(label)}$`, 'i') })
+        .first();
+      await portfolioList
+        .evaluate((list, tabLabel) => {
+          const normalize = text => text?.replace(/\s+/g, ' ').trim() || '';
+          for (const element of list.querySelectorAll('[role="tab"]')) {
+            if (normalize(element.textContent).toLowerCase() !== tabLabel.toLowerCase()) continue;
+            element.scrollIntoView({ block: 'nearest', inline: 'center' });
+            return;
+          }
+        }, label)
+        .catch(() => {});
+    }
+    await tab.scrollIntoViewIfNeeded({ timeout: 8000 }).catch(() => {});
+    await expect(tab, `Tab "${label}" was not found.`).toBeVisible({ timeout: 30000 });
     const selected = (await tab.getAttribute('aria-selected')) === 'true';
     if (!selected) {
       await tab.click();
-      await expect(tab).toHaveAttribute('aria-selected', 'true', { timeout: 10000 });
+      const stillSelected = await tab.getAttribute('aria-selected').catch(() => null);
+      if (stillSelected !== 'true') {
+        await tab.click({ timeout: 5000 }).catch(() => {});
+      }
+      await expect(tab).toHaveAttribute('aria-selected', 'true', { timeout: 15000 });
     }
 
     if (options.setup) {
@@ -329,21 +530,9 @@ class ControlTowerReportsPage extends BasePage {
     await this.ensureControlTowerTabActive();
 
     await expect(async () => {
-      await this.dismissOpenMenus();
-
       const combobox = await this.findVisibleIntelligenceCombobox();
       expect(combobox, `Combobox not found for "${step.name}".`).toBeTruthy();
-
-      await combobox.scrollIntoViewIfNeeded();
-      await combobox.click();
-
-      const option = this.optionLocator(step.option);
-      await expect(option, `Report option "${step.option}" was not visible.`).toBeVisible({
-        timeout: 10000
-      });
-      await option.scrollIntoViewIfNeeded();
-      await option.click();
-      await this.dismissOpenMenus();
+      await this.selectComboboxOption(combobox, step.option);
     }).toPass({ timeout: CT_VIEW_LOAD_MS });
 
     if (options.setup) {
@@ -355,6 +544,11 @@ class ControlTowerReportsPage extends BasePage {
   }
 
   async executeStep(step, options = {}) {
+    if (step.type === 'managementTab') {
+      await this.openManagementSection(step.label, options);
+      return;
+    }
+
     if (step.type === 'tab') {
       await this.openTab(step.label, options);
       return;

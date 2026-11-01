@@ -1,3 +1,5 @@
+const { applyEnvironmentProfile } = require('./paceEnv');
+
 const DEFAULT_BASE_URL = 'https://goldenpasslng.pace-os.com/';
 const DEFAULT_CONTROL_TOWER_URL = 'https://us-controltower.pace-os.com/#/portfolio?page=1';
 
@@ -53,6 +55,9 @@ function normalizeCiEnv() {
   if (!process.env.CONTROL_TOWER_PORTFOLIO_URL?.trim()) {
     process.env.CONTROL_TOWER_PORTFOLIO_URL = DEFAULT_CONTROL_TOWER_URL;
   }
+
+  // Workflow env often sets prod Control Tower URLs while PACE_ENV=dev3; profile wins.
+  applyEnvironmentProfile();
 
   return {
     BASE_URL: process.env.BASE_URL,

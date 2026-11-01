@@ -12,6 +12,7 @@ const {
 const { getEnvironmentProfile, getPaceEnvKey } = require('./utils/paceEnv');
 const { applyControlTowerCiDefaults } = require('./utils/ciControlTower');
 const { applyModulesCiDefaults } = require('./utils/ciModules');
+const { attachSessionRouteGuard } = require('./utils/sessionRouteGuard');
 
 loadProdEnv();
 applyControlTowerCiDefaults();
@@ -30,6 +31,7 @@ async function createBrowserSession(baseUrl) {
     baseURL: baseUrl,
     acceptDownloads: true
   });
+  attachSessionRouteGuard(context);
   const page = await context.newPage();
   return { browser, context, page };
 }

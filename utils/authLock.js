@@ -32,7 +32,11 @@ function clearStaleLock() {
   }
 }
 
-async function acquireLoginLock(owner, timeoutMs = 120000) {
+function defaultLoginLockTimeoutMs() {
+  return process.env.CI === 'true' ? 180000 : 120000;
+}
+
+async function acquireLoginLock(owner, timeoutMs = defaultLoginLockTimeoutMs()) {
   fs.mkdirSync(getAuthDir(), { recursive: true });
   const deadline = Date.now() + timeoutMs;
   const lockPath = getLockPath();

@@ -5,6 +5,7 @@ const executionOverview = require('./execution-overview');
 const healthAndSafety = require('./health-and-safety');
 const pms = require('./pms');
 const leadingIndicators = require('./leading-indicators');
+const laggingIndicators = require('./lagging-indicators');
 const shared = require('./shared');
 
 module.exports = {
@@ -16,7 +17,8 @@ module.exports = {
     executionOverview,
     healthAndSafety,
     pms,
-    leadingIndicators
+    leadingIndicators,
+    laggingIndicators
   ],
   dailyProgress,
   projectLibraries,
@@ -24,5 +26,6 @@ module.exports = {
   executionOverview,
   healthAndSafety,
   pms,
-  leadingIndicators
+  leadingIndicators,
+  laggingIndicators
 };

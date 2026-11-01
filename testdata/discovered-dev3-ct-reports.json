@@ -1,57 +1,114 @@
 {
   "discovered": {
     "Project Libraries": [
-      "Activity Breakdown L1-L5",
       "3D Scope Matrix",
-      "IWP-ITP Document Matrix",
-      "CWP/EWP Scope Matrix",
-      "GWBS",
-      "CWP/EWP/IWP Register",
-      "IWP Readiness Sub-System Register",
+      "Activity Breakdown L1-L5",
       "Completions Progress Sub-System Register",
-      "IWP-Tag-Document Register",
-      "Progress Measurement",
+      "CWP/EWP Scope Matrix",
+      "CWP/EWP/IWP Register",
+      "GWBS",
       "ITP Inspection Register",
-      "Project ITP Work Steps",
-      "Master Tag Register",
-      "Project Engineering Document Deliverable Register",
-      "Project L3 & L4 activity plan dates",
+      "IWP Readiness Sub-System Register",
+      "IWP-ITP Document Matrix",
+      "IWP-Tag-Document Register",
+      "Jawda (Minor Quality Observation)",
       "L4 Norms Matrix",
+      "Master Tag Register",
+      "Progress Measurement",
+      "Project Engineering Document Deliverable Register",
+      "Project ITP Work Steps",
+      "Project L3 & L4 activity plan dates",
       "QIR NCR",
-      "VTT Variance",
       "Quality Punch List",
-      "Jawda (Minor Quality Observation)"
+      "VTT Variance"
     ],
     "Standard Libraries": [
-      "Geographical WBS",
       "Activity Breakdown Structure",
+      "Geographical WBS",
+      "ITP Work Step",
       "IWP-PLIP Matrix",
-      "Productivity Norms",
       "PLIP Classification",
-      "ITP Work Step"
+      "Productivity Norms"
     ],
     "PMS": [
       "Progress Measurement System"
     ],
-    "Leading Indicators": [
-      "Progress Measurement System",
-      "IWP Progress Summary",
-      "CWP Trend",
-      "EWP Trend",
-      "Onsite Trend",
-      "Schedule Start Performance Index",
-      "Schedule Closeout Adherence Rate",
-      "Man-Hour Productivity Rate",
-      "Action Closure Time",
-      "Work Package Completion Rate",
-      "Hindrance Log (Open/Closed)",
-      "Daily Progress Intelligence",
-      "Inspection Clearance Rate",
-      "IWP Compiled vs. Not Compiled IWPs"
-    ],
-    "Lagging Indicators": []
+    "Leading Indicators": {
+      "Lower Management": [
+        "Action Closure Time",
+        "CWP Trend",
+        "Daily Progress Intelligence",
+        "EWP Trend",
+        "Hindrance Log (Open/Closed)",
+        "Inspection Clearance Rate",
+        "IWP Compiled vs. Not Compiled IWPs",
+        "IWP Progress Summary",
+        "Man-Hour Productivity Rate",
+        "Onsite Trend",
+        "Progress Measurement System",
+        "Schedule Closeout Adherence Rate",
+        "Schedule Start Performance Index",
+        "Work Package Completion Rate"
+      ],
+      "Middle Management": [
+        "Action Closure Time",
+        "Change Order Frequency & Impact",
+        "CWP Analytics",
+        "CWP Preparation Leadership Risks",
+        "CWP Preparation Management Summary",
+        "CWP Preparation Team Lead Summary",
+        "CWP Readiness Ratio",
+        "CWP Trend",
+        "EWP Analytics",
+        "EWP Release Summary",
+        "EWP Team Summary",
+        "EWP Tree Summary",
+        "EWP Trend",
+        "IWP Analytics",
+        "IWP Stage Overview",
+        "IWP Unit/Area based Roll-Up",
+        "Onsite Trend",
+        "Schedule Performance Index (SPI)",
+        "Work Package Completion Rate"
+      ],
+      "Higher Management": [
+        "EWP Leadership Summary",
+        "IWP Release Execution Status",
+        "Schedule Performance Index (SPI)"
+      ]
+    },
+    "Lagging Indicators": {
+      "Lower Management": [
+        "Incomplete Work Ratio",
+        "Technical Queries (TQT)",
+        "Hindrance Log (Open/Closed)",
+        "EWP Supervisor Summary",
+        "CWP Supervisor Summary",
+        "CWP Execution Team Lead"
+      ],
+      "Middle Management": [
+        "IWP Planned vs. Actual Earned",
+        "IWP Detailed Breakdown",
+        "CWP Execution Leadership",
+        "EWP Management Summary",
+        "Hindrance Log (Open/Closed)"
+      ],
+      "Higher Management": [
+        "EWP Management Summary",
+        "IWP Planned vs. Actual Earned"
+      ]
+    }
   },
+  "uiTabs": [
+    "Project Libraries",
+    "Standard Libraries",
+    "PMS",
+    "Leading Indicators",
+    "Lagging Indicators"
+  ],
   "missingInRegistry": [],
   "missingOnTenant": [],
-  "expectedCount": 41
+  "discoveredUniqueCount": 76,
+  "discoveredTestCaseCount": 76,
+  "registryCount": 76
 }
