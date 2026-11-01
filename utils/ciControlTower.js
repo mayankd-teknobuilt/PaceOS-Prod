@@ -15,6 +15,12 @@ function applyControlTowerCiDefaults() {
   if (process.env.CI !== 'true') {
     return { ...CI_CONTROL_TOWER_ENV };
   }
+
+  const paceEnv = (process.env.PACE_ENV || process.env.PACE_TEST_ENV || 'prod').trim().toLowerCase();
+  if (paceEnv === 'dev3') {
+    process.env.PLAYWRIGHT_WORKERS = process.env.CI_DEV3_CT_WORKERS || '2';
+  }
+
   for (const [key, value] of Object.entries(CI_CONTROL_TOWER_ENV)) {
     if (!process.env[key]) {
       process.env[key] = value;

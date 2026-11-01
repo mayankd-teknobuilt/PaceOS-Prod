@@ -61,6 +61,16 @@ async function selectProdProjectContext(page) {
     await safeGoto(page, new URL('/select-project', baseUrl).toString());
   }
 
+  await page.waitForLoadState('domcontentloaded', { timeout: 30000 }).catch(() => {});
+  await page.waitForURL(/select-project/i, { timeout: 30000 }).catch(() => {});
+
+  const projectPage = new ProjectPage(page);
+  await projectPage.dismissCookieBanner();
+  await projectPage.projectCards
+    .first()
+    .waitFor({ state: 'visible', timeout: 45000 })
+    .catch(() => {});
+
   const selectProjectDeadline = Date.now() + 60000;
   while (!/\/select-project/i.test(page.url()) && Date.now() < selectProjectDeadline) {
     if (/logout/i.test(page.url())) {
@@ -75,7 +85,6 @@ async function selectProdProjectContext(page) {
     throw new Error(`Project selection page did not load (current URL: ${page.url()})`);
   }
 
-  const projectPage = new ProjectPage(page);
   const cardIndex = Number(process.env.PROD_PROJECT_CARD_INDEX || 0);
   const projectCode = process.env.PROD_PROJECT_CODE?.trim() || '';
 

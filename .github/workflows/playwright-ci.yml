@@ -189,7 +189,7 @@ jobs:
           retention-days: 14
 
   dev3-control-tower:
-    name: Dev3 — Control Tower (4 workers)
+    name: Dev3 — Control Tower (2 workers)
     if: >-
       ${{ vars.ENABLE_DEV3_CI != 'false'
       && (github.event_name == 'schedule'
@@ -226,7 +226,7 @@ jobs:
           SLOW_CASE_TIMEOUT_MS: 300000
           SLOW_CASE_ATTEMPT_MS: 150000
           DOWNLOAD_TIMEOUT_MS: 90000
-        run: npx playwright test --project=control-tower-reports-email --workers=4
+        run: npx playwright test --project=control-tower-reports-email --workers=2
       - uses: actions/upload-artifact@v4
         if: always()
         with:

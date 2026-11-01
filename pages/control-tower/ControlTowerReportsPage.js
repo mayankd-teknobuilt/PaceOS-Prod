@@ -4,7 +4,11 @@ const logger = require('../../utils/logger');
 const { pauseForVisibility } = require('../../utils/stageTiming');
 const { isFastMode } = require('../../utils/fastMode');
 const { DOWNLOAD_TIMEOUT_MS, CT_VIEW_LOAD_MS } = require('../../utils/testTiming');
-const { CONTROL_TOWER_URL, portfolioUrl } = require('../../testdata/control-tower/shared');
+const {
+  getPortfolioUrl,
+  getControlTowerUrlPattern,
+  getControlTowerDiscoveryTabs
+} = require('../../testdata/control-tower/shared');
 const { getPaceEnvKey } = require('../../utils/paceEnv');
 
 const VISIBLE_ERROR_SELECTORS = [
@@ -171,29 +175,55 @@ class ControlTowerReportsPage extends BasePage {
     }
 
     await this.reportsPage.bringToFront();
+    const ctHostPattern = getControlTowerUrlPattern();
+    const portfolio = getPortfolioUrl();
 
-    if (!CONTROL_TOWER_URL.test(this.reportsPage.url())) {
+    if (!ctHostPattern.test(this.reportsPage.url())) {
       logger.info('Control Tower tab left host — navigating back.');
-      await this.reportsPage.goto(portfolioUrl, { waitUntil: 'domcontentloaded' });
+      await this.reportsPage.goto(portfolio, { waitUntil: 'domcontentloaded' });
       await this.waitForControlTowerShell();
       return;
     }
 
     if (!/#\/portfolio/i.test(this.reportsPage.url())) {
       logger.info('Control Tower not on portfolio view — navigating to portfolio.');
-      await this.reportsPage.goto(portfolioUrl, { waitUntil: 'domcontentloaded' });
+      await this.reportsPage.goto(portfolio, { waitUntil: 'domcontentloaded' });
       await this.waitForControlTowerShell();
     }
+  }
+
+  async waitForDev3PortfolioTabs() {
+    const tabList = await this.resolvePortfolioTabList();
+    await expect(tabList, 'Dev3 portfolio tab list was not visible.').toBeVisible({ timeout: 60000 });
+
+    const labels = getControlTowerDiscoveryTabs('dev3');
+    for (const label of labels) {
+      const tab = tabList.getByRole('tab', {
+        name: new RegExp(`^${this.escapeRegex(label)}$`, 'i')
+      });
+      if (await tab.first().isVisible({ timeout: 5000 }).catch(() => false)) {
+        return;
+      }
+    }
+
+    await expect(
+      tabList.getByRole('tab').first(),
+      'Dev3 Control Tower portfolio tabs were not visible.'
+    ).toBeVisible({ timeout: 30000 });
   }
 
   async waitForPortfolioReady() {
     await this.ensureControlTowerTabActive();
 
     if (getPaceEnvKey() === 'dev3') {
-      await expect(
-        this.reportsPage.getByRole('tab', { name: 'Project Libraries' }),
-        'Dev3 Control Tower portfolio tabs were not visible.'
-      ).toBeVisible({ timeout: 60000 });
+      try {
+        await this.waitForDev3PortfolioTabs();
+      } catch (err) {
+        logger.warn(`Dev3 portfolio tabs missing — reloading portfolio: ${err.message}`);
+        await this.reportsPage.goto(getPortfolioUrl(), { waitUntil: 'domcontentloaded' });
+        await this.waitForControlTowerShell();
+        await this.waitForDev3PortfolioTabs();
+      }
       await expect(
         this.reportsPage.getByText(/Intelligence/i).first(),
         'Dev3 Control Tower Intelligence panel was not visible.'
@@ -253,7 +283,7 @@ class ControlTowerReportsPage extends BasePage {
   }
 
   async waitForControlTowerShell() {
-    await expect(this.reportsPage).toHaveURL(CONTROL_TOWER_URL, { timeout: 60000 });
+    await expect(this.reportsPage).toHaveURL(getControlTowerUrlPattern(), { timeout: 60000 });
     await this.reportsPage.waitForLoadState('domcontentloaded', { timeout: 60000 });
     await expect(this.reportsPage.locator('body')).not.toBeEmpty({ timeout: 20000 });
     await pauseForVisibility(this.reportsPage, 'Control Tower portfolio ready');
