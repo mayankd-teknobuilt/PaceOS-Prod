@@ -15,6 +15,17 @@ const { categories } = require('../testdata/control-tower');
 const { buildReportTestCases } = require('../utils/controlTowerParallel');
 const { isCategoryEnabledForEnv } = require('../utils/paceEnv');
 const { getControlTowerDiscoveryTabs } = require('../testdata/control-tower/shared');
+const {
+  collectAllListboxOptions,
+  listControlTowerTabLabels,
+  discoverIndicatorsWithManagementSections,
+  collectVisibleComboboxOptions,
+  resolvePortfolioTabList,
+  openPortfolioTab
+} = require('../utils/discoverCtListbox');
+const { countDiscoveryTestCases, flattenDiscoveryTab } = require('../utils/ctManagementSections');
+
+const INDICATORS_TABS = new Set(['Leading Indicators', 'Lagging Indicators']);
 
 (async () => {
   const { email, password } = getValidUser();
@@ -27,7 +38,7 @@ const { getControlTowerDiscoveryTabs } = require('../testdata/control-tower/shar
   console.log(`[discover-ct] module=${process.env.PROD_CONTROL_TOWER_MODULE} tab=${process.env.PROD_CONTROL_TOWER_TAB}`);
 
   const browser = await chromium.launch({ headless: process.env.PW_HEADED === 'true' ? false : true });
-  const context = await browser.newContext({ baseURL: process.env.BASE_URL });
+  const context = await browser.newContext({ baseURL: process.env.BASE_URL, acceptDownloads: true });
   const page = await context.newPage();
   const errorMonitor = createErrorMonitor();
 
@@ -41,29 +52,73 @@ const { getControlTowerDiscoveryTabs } = require('../testdata/control-tower/shar
   await navigation.reportsPage.waitForControlTowerShell();
   await navigation.reportsPage.waitForPortfolioReady();
 
+  const portfolioLabels = await (await resolvePortfolioTabList(ctPage))
+    .getByRole('tab')
+    .allTextContents();
+  console.log('[discover-ct] portfolio tab labels:', portfolioLabels.map(t => t.replace(/\s+/g, ' ').trim()));
+
+  const uiTabs = await listControlTowerTabLabels(ctPage);
+  const configuredTabs = getControlTowerDiscoveryTabs(getPaceEnvKey());
+  const tabsToScan = [...new Set([...configuredTabs, ...uiTabs])].sort((a, b) => {
+    const order = { 'Lagging Indicators': 0, 'Leading Indicators': 1 };
+    return (order[a] ?? 10) - (order[b] ?? 10);
+  });
+
+  console.log(`[discover-ct] UI tabs (${uiTabs.length}):`, uiTabs);
+  console.log(`[discover-ct] Scanning ${tabsToScan.length} tab(s)`);
+
   const discovered = {};
 
   async function listComboboxOptions(tabName) {
-    await ctPage.getByRole('tab', { name: tabName }).click();
-    await ctPage.waitForTimeout(2500);
-    const combobox = await navigation.reportsPage.findVisibleIntelligenceCombobox();
-    if (!combobox) {
+    try {
+      await openPortfolioTab(ctPage, tabName);
+    } catch {
       discovered[tabName] = [];
-      console.log(`\n${tabName}: no combobox`);
+      console.log(`\n${tabName}: tab not found`);
       return;
     }
-    await combobox.click();
-    await ctPage.waitForTimeout(1000);
-    const options = await ctPage.getByRole('option').evaluateAll(elements =>
-      elements.map(el => el.textContent?.trim()).filter(Boolean)
-    );
+
+    await ctPage.waitForTimeout(2000);
+    await navigation.reportsPage.dismissOpenMenus().catch(() => {});
+
+    if (INDICATORS_TABS.has(tabName)) {
+      discovered[tabName] = await discoverIndicatorsWithManagementSections(
+        ctPage,
+        navigation.reportsPage,
+        tabName
+      );
+      const rows = flattenDiscoveryTab(discovered[tabName]);
+      console.log(`\n${tabName} sections (${rows.length} test cases):`);
+      console.log(JSON.stringify(discovered[tabName], null, 2));
+      return;
+    }
+
+    const combobox = await navigation.reportsPage.findVisibleIntelligenceCombobox();
+    if (!combobox) {
+      const comboCount = await ctPage.getByRole('combobox').count();
+      const merged = new Set();
+      for (let i = 0; i < comboCount; i++) {
+        const candidate = ctPage.getByRole('combobox').nth(i);
+        if (!(await candidate.isVisible().catch(() => false))) continue;
+        const ariaLabel = ((await candidate.getAttribute('aria-label')) || '').toLowerCase();
+        const text = ((await candidate.textContent()) || '').toLowerCase();
+        if (ariaLabel.includes('rows per page') || text.includes('rows per page')) continue;
+        const opts = await collectAllListboxOptions(ctPage, candidate);
+        opts.forEach(opt => merged.add(opt));
+      }
+      discovered[tabName] = [...merged].sort((a, b) => a.localeCompare(b));
+      console.log(`\n${tabName} options (${discovered[tabName].length}) [fallback combobox scan]:`);
+      console.log(JSON.stringify(discovered[tabName], null, 2));
+      return;
+    }
+
+    const options = await collectAllListboxOptions(ctPage, combobox);
     discovered[tabName] = options;
     console.log(`\n${tabName} options (${options.length}):`);
     console.log(JSON.stringify(options, null, 2));
-    await ctPage.keyboard.press('Escape');
   }
 
-  for (const tab of getControlTowerDiscoveryTabs(getPaceEnvKey())) {
+  for (const tab of tabsToScan) {
     await listComboboxOptions(tab);
   }
 
@@ -75,18 +130,36 @@ const { getControlTowerDiscoveryTabs } = require('../testdata/control-tower/shar
     }
   }
 
-  const discoveredFlat = [...new Set(Object.values(discovered).flat())];
+  const discoveredFlat = [...new Set(
+    Object.values(discovered).flatMap(value => flattenDiscoveryTab(value).map(row => row.name))
+  )];
+  const discoveredTestCaseCount = countDiscoveryTestCases(discovered);
   const missingInRegistry = discoveredFlat.filter(name => !expected.includes(name));
   const missingOnTenant = expected.filter(name => !discoveredFlat.includes(name));
 
   console.log('\n--- compare ---');
+  console.log('Discovered unique report names:', discoveredFlat.length);
+  console.log('Discovered test cases (per tab, incl. duplicates):', discoveredTestCaseCount);
+  console.log('Registry report total:', expected.length);
   console.log('Missing in test registry (add to control-tower categories):', missingInRegistry);
   console.log('In registry but not on tenant UI:', missingOnTenant);
 
   const outPath = path.resolve(__dirname, '..', 'testdata', `discovered-${getPaceEnvKey()}-ct-reports.json`);
   fs.writeFileSync(
     outPath,
-    `${JSON.stringify({ discovered, missingInRegistry, missingOnTenant, expectedCount: expected.length }, null, 2)}\n`,
+    `${JSON.stringify(
+      {
+        discovered,
+        uiTabs,
+        missingInRegistry,
+        missingOnTenant,
+        discoveredUniqueCount: discoveredFlat.length,
+        discoveredTestCaseCount,
+        registryCount: expected.length
+      },
+      null,
+      2
+    )}\n`,
     'utf8'
   );
   console.log(`[discover-ct] wrote ${outPath}`);
