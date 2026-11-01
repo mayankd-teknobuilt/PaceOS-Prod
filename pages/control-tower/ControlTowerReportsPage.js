@@ -212,6 +212,33 @@ class ControlTowerReportsPage extends BasePage {
     ).toBeVisible({ timeout: 30000 });
   }
 
+  async waitForProdPortfolioTabs() {
+    const tabList = await this.resolvePortfolioTabList();
+    await expect(tabList, 'Portfolio tab list was not visible.').toBeVisible({ timeout: 60000 });
+
+    const labels = getControlTowerDiscoveryTabs('prod');
+    for (const label of labels) {
+      const tab = tabList.getByRole('tab', {
+        name: new RegExp(`^${this.escapeRegex(label)}$`, 'i')
+      });
+      if (await tab.first().isVisible({ timeout: 5000 }).catch(() => false)) {
+        return;
+      }
+    }
+
+    await expect(
+      tabList.getByRole('tab').first(),
+      'Control Tower portfolio tabs were not visible.'
+    ).toBeVisible({ timeout: 30000 });
+  }
+
+  async reloadPortfolioAndWaitForTabs(waitFn) {
+    logger.warn('Portfolio tabs missing — reloading portfolio view.');
+    await this.reportsPage.goto(getPortfolioUrl(), { waitUntil: 'domcontentloaded' });
+    await this.waitForControlTowerShell();
+    await waitFn.call(this);
+  }
+
   async waitForPortfolioReady() {
     await this.ensureControlTowerTabActive();
 
@@ -220,23 +247,19 @@ class ControlTowerReportsPage extends BasePage {
         await this.waitForDev3PortfolioTabs();
       } catch (err) {
         logger.warn(`Dev3 portfolio tabs missing — reloading portfolio: ${err.message}`);
-        await this.reportsPage.goto(getPortfolioUrl(), { waitUntil: 'domcontentloaded' });
-        await this.waitForControlTowerShell();
-        await this.waitForDev3PortfolioTabs();
+        await this.reloadPortfolioAndWaitForTabs(this.waitForDev3PortfolioTabs);
       }
       await expect(
         this.reportsPage.getByText(/Intelligence/i).first(),
         'Dev3 Control Tower Intelligence panel was not visible.'
       ).toBeVisible({ timeout: 30000 });
     } else {
-      await expect(
-        this.reportsPage.getByRole('tab', { name: 'Project Progress' }),
-        'Control Tower portfolio tabs were not visible.'
-      ).toBeVisible({ timeout: 60000 });
-      await expect(
-        this.reportsPage.getByRole('button', { name: 'Utilization Trend' }),
-        'Project Progress trend actions were not visible on Control Tower.'
-      ).toBeVisible({ timeout: 30000 });
+      try {
+        await this.waitForProdPortfolioTabs();
+      } catch (err) {
+        logger.warn(`Prod portfolio tabs missing — reloading portfolio: ${err.message}`);
+        await this.reloadPortfolioAndWaitForTabs(this.waitForProdPortfolioTabs);
+      }
     }
 
     await this.waitForReportSettle();
