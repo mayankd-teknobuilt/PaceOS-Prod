@@ -54,6 +54,11 @@ env:
     || startsWith(github.ref, 'refs/heads/cursor/')
     || vars.CI_FULL_SUITE == 'true' }}
 
+# Job `if` cannot use the `env` context — repeat this predicate where needed:
+# github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+# || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+# || startsWith(github.ref, 'refs/heads/cursor/') || vars.CI_FULL_SUITE == 'true'
+
 jobs:
   prod-modules:
     name: Prod — Modules (4 workers)
@@ -98,7 +103,12 @@ jobs:
     if: >-
       ${{ (github.event_name != 'workflow_dispatch'
       || contains(fromJSON('["all","prod-only","control-tower","fast"]'), github.event.inputs.suite))
-      && (env.RUN_FULL_SUITE == 'true' || github.event_name == 'workflow_dispatch') }}
+      && (github.event_name == 'schedule'
+      || github.event_name == 'workflow_dispatch'
+      || github.ref == 'refs/heads/main'
+      || github.ref == 'refs/heads/master'
+      || startsWith(github.ref, 'refs/heads/cursor/')
+      || vars.CI_FULL_SUITE == 'true') }}
     timeout-minutes: 240
     runs-on: ubuntu-latest
     env:
@@ -143,7 +153,12 @@ jobs:
     name: Dev3 — Modules (serial)
     if: >-
       ${{ vars.ENABLE_DEV3_CI != 'false'
-      && (env.RUN_FULL_SUITE == 'true' || github.event_name == 'workflow_dispatch')
+      && (github.event_name == 'schedule'
+      || github.event_name == 'workflow_dispatch'
+      || github.ref == 'refs/heads/main'
+      || github.ref == 'refs/heads/master'
+      || startsWith(github.ref, 'refs/heads/cursor/')
+      || vars.CI_FULL_SUITE == 'true')
       && (github.event_name != 'workflow_dispatch'
       || contains(fromJSON('["all","dev3-only","dev3-modules"]'), github.event.inputs.suite)) }}
     timeout-minutes: 180
@@ -180,7 +195,12 @@ jobs:
     name: Dev3 — Control Tower (serial)
     if: >-
       ${{ vars.ENABLE_DEV3_CI != 'false'
-      && (env.RUN_FULL_SUITE == 'true' || github.event_name == 'workflow_dispatch')
+      && (github.event_name == 'schedule'
+      || github.event_name == 'workflow_dispatch'
+      || github.ref == 'refs/heads/main'
+      || github.ref == 'refs/heads/master'
+      || startsWith(github.ref, 'refs/heads/cursor/')
+      || vars.CI_FULL_SUITE == 'true')
       && (github.event_name != 'workflow_dispatch'
       || contains(fromJSON('["all","dev3-only","dev3-control-tower"]'), github.event.inputs.suite)) }}
     timeout-minutes: 240
@@ -201,6 +221,7 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: node scripts/create-ci-env.js
       - run: node scripts/validate-ci-env.js
+      - run: node scripts/validate-dev3-ct-registry.js
       - name: Run dev3 Control Tower reports
         env:
           PLAYWRIGHT_JSON_OUTPUT: report-dev3-control-tower.json
