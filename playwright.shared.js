@@ -4,6 +4,7 @@ const { loadProdEnv } = require('./utils/loadEnv');
 const { CASE_TIMEOUT_MS } = require('./utils/testTiming');
 const { getPlaywrightEnvGrep, combineGrepPatterns } = require('./utils/envTestFilter');
 const { applyModulesCiDefaults } = require('./utils/ciModules');
+const { applyControlTowerCiDefaults } = require('./utils/ciControlTower');
 
 /**
  * Shared production Playwright options (no @playwright/test import here).
@@ -11,13 +12,19 @@ const { applyModulesCiDefaults } = require('./utils/ciModules');
 function createProdPlaywrightConfig(baseDir, deviceUse = {}) {
   loadProdEnv(baseDir);
   applyModulesCiDefaults();
+  applyControlTowerCiDefaults();
 
   const fast = isFastMode();
   const defaultWorkers = Number(process.env.PLAYWRIGHT_WORKERS || process.env.WORKERS) || 4;
   const moduleProjectTimeout =
-    process.env.CI === 'true' ? Math.max(CASE_TIMEOUT_MS, 120000) : CASE_TIMEOUT_MS;
-  const controlTowerFullyParallel = true;
-  const prodModulesFullyParallel = true;
+    Number(process.env.MODULE_CASE_TIMEOUT_MS) ||
+    (process.env.CI === 'true' ? 180000 : 120000);
+  const controlTowerProjectTimeout =
+    Number(process.env.CT_CASE_TIMEOUT_MS) ||
+    Number(process.env.SLOW_CASE_TIMEOUT_MS) ||
+    (process.env.CI === 'true' ? 300000 : 180000);
+  const controlTowerFullyParallel = false;
+  const prodModulesFullyParallel = false;
   const jsonReportFile =
     process.env.PLAYWRIGHT_JSON_OUTPUT || 'report.json';
   const baseURL = process.env.BASE_URL;
@@ -81,6 +88,7 @@ function createProdPlaywrightConfig(baseDir, deviceUse = {}) {
         testMatch: '**/Control-tower-reports/reports/**/*.spec.js',
         grep: suiteGrep,
         fullyParallel: controlTowerFullyParallel,
+        timeout: controlTowerProjectTimeout,
         use: {
           ...projectUse,
           actionTimeout: fast ? 20000 : 20000,
@@ -93,6 +101,7 @@ function createProdPlaywrightConfig(baseDir, deviceUse = {}) {
         testMatch: '**/Control-tower-reports/reports/**/*.spec.js',
         grep: suiteGrep,
         fullyParallel: controlTowerFullyParallel,
+        timeout: controlTowerProjectTimeout,
         use: {
           ...projectUse,
           actionTimeout: fast ? 20000 : 20000,

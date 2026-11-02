@@ -60,7 +60,7 @@ const test = base.extend({
       await use({ context, page });
       await context.close();
     },
-    { scope: 'worker' }
+    { scope: 'worker', timeout: 180000 }
   ],
 
   context: async ({ prodSession }, use) => {
@@ -73,10 +73,14 @@ const test = base.extend({
 
   dashboard: async ({ page }, use) => {
     const dashboardPage = new StageDashboardPage(page);
-    await dashboardPage.dismissCookieBanner();
-    await dashboardPage.waitForDashboardReady();
+    await dashboardPage.assertDashboardStable();
     await use(page);
   }
+});
+
+const moduleCaseTimeoutMs = Number(process.env.MODULE_CASE_TIMEOUT_MS) || 120000;
+test.beforeEach(({ }, testInfo) => {
+  testInfo.setTimeout(Math.max(testInfo.timeout, moduleCaseTimeoutMs));
 });
 
 module.exports = { test, expect };

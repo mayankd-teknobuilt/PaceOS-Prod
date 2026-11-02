@@ -3,7 +3,7 @@ const BasePage = require('../BasePage');
 const logger = require('../../utils/logger');
 const { pauseForVisibility } = require('../../utils/stageTiming');
 const { isFastMode } = require('../../utils/fastMode');
-const { DOWNLOAD_TIMEOUT_MS, CT_VIEW_LOAD_MS } = require('../../utils/testTiming');
+const { DOWNLOAD_TIMEOUT_MS, CT_VIEW_LOAD_MS, SLOW_CT_REPORTS } = require('../../utils/testTiming');
 const {
   getPortfolioUrl,
   getControlTowerUrlPattern,
@@ -46,10 +46,34 @@ class ControlTowerReportsPage extends BasePage {
   }
 
   filterButtonLocator(label) {
-    return this.reportsPage
-      .locator('[role="tabpanel"]:visible')
-      .getByRole('button', { name: label, exact: true })
-      .first();
+    const panel = this.reportsPage.locator('[role="tabpanel"]:visible').last();
+    return panel.getByRole('button', { name: label, exact: true }).first();
+  }
+
+  async clickFilterButton(label, stepName, { setup = false } = {}) {
+    await expect(async () => {
+      const scopes = [
+        this.reportsPage.locator('[role="tabpanel"]:visible').last(),
+        this.reportsPage
+      ];
+      let clicked = false;
+      for (const scope of scopes) {
+        const button = scope.getByRole('button', { name: label, exact: true }).first();
+        if (!(await button.isVisible().catch(() => false))) continue;
+        await button.scrollIntoViewIfNeeded().catch(() => {});
+        await button.click({ timeout: 10000 });
+        clicked = true;
+        break;
+      }
+      expect(clicked, `Filter button "${label}" was not clickable.`).toBeTruthy();
+    }).toPass({ timeout: 30000 });
+
+    if (setup) {
+      await this.waitForSetupStep(stepName || `Filter: ${label}`);
+      return;
+    }
+
+    await this.waitForReportSettle({ quick: true });
   }
 
   portfolioTabListLocator() {
@@ -442,20 +466,18 @@ class ControlTowerReportsPage extends BasePage {
   }
 
   async clickButton(label, stepName, options = {}) {
-    const button = options.filter
-      ? this.filterButtonLocator(label)
-      : this.buttonLocator(label, { exact: options.exact ?? true });
+    if (options.filter) {
+      await this.clickFilterButton(label, stepName || label, { setup: !!options.setup });
+      return;
+    }
+
+    const button = this.buttonLocator(label, { exact: options.exact ?? true });
 
     await expect(button, `Button "${label}" was not found.`).toBeVisible({ timeout: 20000 });
     await button.click();
 
     if (options.setup) {
       await this.waitForSetupStep(stepName || label);
-      return;
-    }
-
-    if (options.filter) {
-      await this.waitForReportSettle({ quick: true });
       return;
     }
 
@@ -568,11 +590,15 @@ class ControlTowerReportsPage extends BasePage {
   async selectReport(step, options = {}) {
     await this.ensureControlTowerTabActive();
 
+    const selectPassMs = SLOW_CT_REPORTS.has(step.name)
+      ? Math.max(CT_VIEW_LOAD_MS, 90000)
+      : Math.max(CT_VIEW_LOAD_MS, 60000);
+
     await expect(async () => {
       const combobox = await this.findVisibleIntelligenceCombobox();
       expect(combobox, `Combobox not found for "${step.name}".`).toBeTruthy();
       await this.selectComboboxOption(combobox, step.option);
-    }).toPass({ timeout: Math.max(CT_VIEW_LOAD_MS, 60000) });
+    }).toPass({ timeout: selectPassMs });
 
     if (options.setup) {
       await this.waitForSetupStep(step.name);

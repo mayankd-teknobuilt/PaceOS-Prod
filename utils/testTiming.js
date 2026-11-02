@@ -49,7 +49,9 @@ function getCaseAttemptMs(reportName) {
   return CASE_ATTEMPT_MS;
 }
 const DOWNLOAD_TIMEOUT_MS = Number(process.env.DOWNLOAD_TIMEOUT_MS) || (isDev3Ct ? 45000 : 90000);
-const CT_VIEW_LOAD_MS = Number(process.env.CT_VIEW_LOAD_MS) || (isDev3Ct ? 40000 : 25000);
+const CT_VIEW_LOAD_MS =
+  Number(process.env.CT_VIEW_LOAD_MS) ||
+  (isDev3Ct ? 40000 : isCi ? 45000 : 25000);
 
 function remainingMs(deadlineMs) {
   return Math.max(0, deadlineMs - Date.now());

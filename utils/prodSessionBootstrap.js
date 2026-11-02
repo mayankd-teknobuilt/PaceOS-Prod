@@ -29,29 +29,42 @@ async function assertAuthenticatedDashboard(page, workerLabel = 'worker') {
 
 async function tryRestoreDashboardSession(page, baseUrl, workerLabel) {
   const dashboard = new StageDashboardPage(page);
+  const dashboardUrl = new URL('/dashboard', baseUrl).toString();
 
-  for (const route of ['/dashboard', '/my-work']) {
-    await safeGoto(page, new URL(route, baseUrl).toString());
+  for (const route of [dashboardUrl, new URL('/my-work', baseUrl).toString()]) {
+    if (page.isClosed()) {
+      return false;
+    }
+
+    await safeGoto(page, route);
     await dismissCookieBanner(page);
 
     if (await isLoginVisible(page)) {
       return false;
     }
 
-    if (/dashboard/i.test(page.url()) && (await hasValidSession(page)) && (await isProjectContextSet(page))) {
-      await dashboard.waitForDashboardReady();
-      await assertAuthenticatedDashboard(page, workerLabel);
-      logger.info(`${workerLabel}: reused saved auth session`);
-      return true;
+    if (!/dashboard/i.test(page.url())) {
+      continue;
     }
+
+    if (!(await hasValidSession(page))) {
+      continue;
+    }
+
+    if (!(await isProjectContextSet(page))) {
+      continue;
+    }
+
+    await dashboard.assertDashboardStable();
+    logger.info(`${workerLabel}: reused saved auth session (no login)`);
+    return true;
   }
 
   return false;
 }
 
 /**
- * Each worker keeps its own storage file so parallel logins do not overwrite
- * other workers' sessions. Login is serialized with a file lock.
+ * One login + project context per worker. Uses global-setup storage; login lock only when restore fails.
  */
 async function bootstrapProdSession(page, loginMethod, baseUrl, workerIndex = 0) {
   const workerLabel = `Worker ${workerIndex}`;
@@ -81,7 +94,7 @@ async function bootstrapProdSession(page, loginMethod, baseUrl, workerIndex = 0)
     if (!/dashboard/i.test(page.url())) {
       await safeGoto(page, new URL('/dashboard', baseUrl).toString());
     }
-    await dashboard.waitForDashboardReady();
+    await dashboard.assertDashboardStable();
     await assertAuthenticatedDashboard(page, workerLabel);
     await page.context().storageState({ path: storagePath });
     authenticatedOnCurrentPage = true;

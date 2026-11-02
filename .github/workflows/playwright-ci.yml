@@ -61,7 +61,7 @@ env:
 
 jobs:
   prod-modules:
-    name: Prod — Modules (2 workers)
+    name: Prod — Modules (1 worker, serial)
     if: >-
       ${{ github.event_name != 'workflow_dispatch'
       || contains(fromJSON('["all","prod-only","prod-modules","fast"]'), github.event.inputs.suite) }}
@@ -69,7 +69,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       PACE_ENV: prod
-      PLAYWRIGHT_WORKERS: '2'
+      PLAYWRIGHT_WORKERS: '1'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -85,7 +85,7 @@ jobs:
         env:
           PLAYWRIGHT_JSON_OUTPUT: report-prod-modules.json
           PACE_FAST: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.suite == 'fast' && 'true' || 'false' }}
-        run: npx playwright test --project=prod-modules-email --workers=2
+        run: npx playwright test --project=prod-modules-email --workers=1
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -100,7 +100,7 @@ jobs:
           retention-days: 7
 
   control-tower:
-    name: Prod — Control Tower (2 workers)
+    name: Prod — Control Tower (1 worker, serial)
     if: >-
       ${{ (github.event_name != 'workflow_dispatch'
       || contains(fromJSON('["all","prod-only","control-tower","fast"]'), github.event.inputs.suite))
@@ -114,7 +114,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       PACE_ENV: prod
-      PLAYWRIGHT_WORKERS: '2'
+      PLAYWRIGHT_WORKERS: '1'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -136,7 +136,7 @@ jobs:
           SLOW_CASE_ATTEMPT_MS: 150000
           DOWNLOAD_TIMEOUT_MS: 90000
           PACE_FAST: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.suite == 'fast' && 'true' || 'false' }}
-        run: npx playwright test --project=control-tower-reports-email tests/Control-tower-reports/reports --workers=2
+        run: npx playwright test --project=control-tower-reports-email tests/Control-tower-reports/reports --workers=1
       - uses: actions/upload-artifact@v4
         if: always()
         with:
