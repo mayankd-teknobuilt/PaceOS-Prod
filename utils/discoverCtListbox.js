@@ -172,20 +172,43 @@ async function listManagementSectionLabels(page) {
   return [];
 }
 
+async function scrollManagementTabsIntoView(page, label) {
+  const panel = page.locator('[role="tabpanel"]:visible').last();
+  const tabLists = panel.locator('[role="tablist"]');
+  const listCount = await tabLists.count().catch(() => 0);
+
+  for (let i = 0; i < listCount; i++) {
+    await tabLists
+      .nth(i)
+      .evaluate((listEl, tabLabel) => {
+        const norm = text => (text || '').replace(/\s+/g, ' ').trim().toLowerCase();
+        for (const el of listEl.querySelectorAll('[role="tab"], button')) {
+          if (norm(el.textContent) !== tabLabel.toLowerCase()) continue;
+          el.scrollIntoView({ block: 'nearest', inline: 'center' });
+        }
+      }, label)
+      .catch(() => {});
+  }
+}
+
 async function activateManagementSection(page, label) {
   const escape = value => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const pattern = new RegExp(`^${escape(label)}$`, 'i');
   const panel = page.locator('[role="tabpanel"]:visible').last();
 
+  await scrollManagementTabsIntoView(page, label);
+
   for (const scope of [panel, page]) {
-    const tab = scope.getByRole('tab', { name: pattern });
-    if (await tab.isVisible().catch(() => false)) {
-      await tab.click();
+    const tab = scope.getByRole('tab', { name: pattern }).first();
+    if ((await tab.count().catch(() => 0)) > 0) {
+      await tab.scrollIntoViewIfNeeded({ timeout: 8000 }).catch(() => {});
+      await tab.click({ timeout: 15000 });
       return true;
     }
-    const button = scope.getByRole('button', { name: pattern });
-    if (await button.isVisible().catch(() => false)) {
-      await button.click();
+    const button = scope.getByRole('button', { name: pattern }).first();
+    if ((await button.count().catch(() => 0)) > 0) {
+      await button.scrollIntoViewIfNeeded({ timeout: 8000 }).catch(() => {});
+      await button.click({ timeout: 15000 });
       return true;
     }
   }

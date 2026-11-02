@@ -7,6 +7,11 @@ const { loadEnvFileRaw } = require('./envSecrets');
 /**
  * Load .env files without overriding variables already set by the shell/CI.
  * Applies built-in defaults for the active PACE_ENV profile.
+ *
+ * Four env files in this repo:
+ *   Commit:  .env.example, .env.dev3.example  (templates only)
+ *   Local:   .env.local, .env.dev3.local       (gitignored secrets)
+ * Optional: .env (gitignored) if you prefer a single shared base file.
  */
 function loadProdEnv(baseDir = path.resolve(__dirname, '..')) {
   const dotenv = require('dotenv');

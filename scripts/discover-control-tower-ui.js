@@ -1,8 +1,5 @@
-const path = require('path');
-require('dotenv').config({
-  path: path.resolve(__dirname, '..', '.env.local'),
-  override: true
-});
+const { loadScriptEnv } = require('./loadScriptEnv');
+loadScriptEnv();
 
 const { chromium } = require('playwright');
 const LoginPage = require('../pages/LoginPage');

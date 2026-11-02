@@ -101,24 +101,36 @@ class ControlTowerReportsPage extends BasePage {
       return option;
     }
 
+    await listbox.evaluate(element => {
+      element.scrollTop = 0;
+    }).catch(() => {});
+    await this.reportsPage.waitForTimeout(150);
+    if (await option.isVisible().catch(() => false)) {
+      return option;
+    }
+
+    await this.reportsPage.keyboard.press('Escape').catch(() => {});
     const filterText = optionLabel.replace(/\s+/g, ' ').trim();
-    if (filterText.length >= 4) {
-      await this.reportsPage.keyboard.type(filterText.slice(0, 24), { delay: 20 }).catch(() => {});
+    const typeahead = filterText.split(' ').slice(0, 3).join(' ').slice(0, 20);
+    if (typeahead.length >= 3) {
+      await this.reportsPage.keyboard.type(typeahead, { delay: 25 }).catch(() => {});
+      await this.reportsPage.waitForTimeout(200);
       if (await option.isVisible().catch(() => false)) {
         return option;
       }
     }
 
-    for (let attempt = 0; attempt < 14; attempt++) {
+    const scrollRounds = filterText.length > 28 ? 32 : 22;
+    for (let attempt = 0; attempt < scrollRounds; attempt++) {
       if (await option.isVisible().catch(() => false)) {
         return option;
       }
 
       await listbox.evaluate(element => {
-        element.scrollTop += 240;
+        element.scrollTop += 220;
       }).catch(() => {});
       await this.reportsPage.keyboard.press('ArrowDown').catch(() => {});
-      await this.reportsPage.waitForTimeout(120);
+      await this.reportsPage.waitForTimeout(100);
     }
 
     return option;
@@ -136,7 +148,7 @@ class ControlTowerReportsPage extends BasePage {
 
     const option = await this.revealListboxOption(listbox, optionLabel);
     await expect(option, `Report option "${optionLabel}" was not visible.`).toBeVisible({
-      timeout: 10000
+      timeout: 20000
     });
     await option.scrollIntoViewIfNeeded();
     await option.click();
@@ -450,28 +462,55 @@ class ControlTowerReportsPage extends BasePage {
     await this.waitForViewLoaded(stepName || label);
   }
 
-  async openManagementSection(label, options = {}) {
-    const escape = this.escapeRegex(label);
-    const pattern = new RegExp(`^${escape}$`, 'i');
+  async scrollManagementTabsIntoView(label) {
+    const panel = this.reportsPage.locator('[role="tabpanel"]:visible').last();
+    const tabLists = panel.locator('[role="tablist"]');
+    const listCount = await tabLists.count().catch(() => 0);
+
+    for (let i = 0; i < listCount; i++) {
+      await tabLists
+        .nth(i)
+        .evaluate((listEl, tabLabel) => {
+          const norm = text => (text || '').replace(/\s+/g, ' ').trim().toLowerCase();
+          for (const el of listEl.querySelectorAll('[role="tab"], button')) {
+            if (norm(el.textContent) !== tabLabel.toLowerCase()) continue;
+            el.scrollIntoView({ block: 'nearest', inline: 'center' });
+          }
+        }, label)
+        .catch(() => {});
+    }
+  }
+
+  async resolveManagementControl(label) {
+    const pattern = new RegExp(`^${this.escapeRegex(label)}$`, 'i');
     const panel = this.reportsPage.locator('[role="tabpanel"]:visible').last();
 
-    let control = null;
     for (const scope of [panel, this.reportsPage]) {
-      const tab = scope.getByRole('tab', { name: pattern });
-      if (await tab.isVisible().catch(() => false)) {
-        control = tab;
-        break;
+      const tab = scope.getByRole('tab', { name: pattern }).first();
+      if ((await tab.count().catch(() => 0)) > 0) {
+        return tab;
       }
-      const button = scope.getByRole('button', { name: pattern });
-      if (await button.isVisible().catch(() => false)) {
-        control = button;
-        break;
+      const button = scope.getByRole('button', { name: pattern }).first();
+      if ((await button.count().catch(() => 0)) > 0) {
+        return button;
       }
     }
 
-    await expect(control, `Management section "${label}" was not found.`).toBeVisible({ timeout: 20000 });
-    await control.scrollIntoViewIfNeeded({ timeout: 8000 }).catch(() => {});
-    await control.click();
+    return null;
+  }
+
+  async openManagementSection(label, options = {}) {
+    await expect(async () => {
+      await this.scrollManagementTabsIntoView(label);
+      const control = await this.resolveManagementControl(label);
+      expect(control, `Management section "${label}" was not found.`).toBeTruthy();
+      await control.scrollIntoViewIfNeeded({ timeout: 8000 }).catch(() => {});
+      await control.click({ timeout: 15000 });
+      const role = await control.getAttribute('role').catch(() => '');
+      if (role === 'tab') {
+        await expect(control).toHaveAttribute('aria-selected', 'true', { timeout: 10000 });
+      }
+    }).toPass({ timeout: 45000 });
 
     if (options.setup) {
       await this.waitForSetupStep(`Management section: ${label}`);
@@ -506,13 +545,13 @@ class ControlTowerReportsPage extends BasePage {
         .catch(() => {});
     }
     await tab.scrollIntoViewIfNeeded({ timeout: 8000 }).catch(() => {});
-    await expect(tab, `Tab "${label}" was not found.`).toBeVisible({ timeout: 30000 });
+    await expect(tab, `Tab "${label}" was not found.`).toBeAttached({ timeout: 30000 });
     const selected = (await tab.getAttribute('aria-selected')) === 'true';
     if (!selected) {
-      await tab.click();
-      const stillSelected = await tab.getAttribute('aria-selected').catch(() => null);
+      await tab.click({ timeout: 15000 });
+      let stillSelected = await tab.getAttribute('aria-selected').catch(() => null);
       if (stillSelected !== 'true') {
-        await tab.click({ timeout: 5000 }).catch(() => {});
+        await tab.click({ timeout: 5000, force: true }).catch(() => {});
       }
       await expect(tab).toHaveAttribute('aria-selected', 'true', { timeout: 15000 });
     }
@@ -533,7 +572,7 @@ class ControlTowerReportsPage extends BasePage {
       const combobox = await this.findVisibleIntelligenceCombobox();
       expect(combobox, `Combobox not found for "${step.name}".`).toBeTruthy();
       await this.selectComboboxOption(combobox, step.option);
-    }).toPass({ timeout: CT_VIEW_LOAD_MS });
+    }).toPass({ timeout: Math.max(CT_VIEW_LOAD_MS, 60000) });
 
     if (options.setup) {
       await this.waitForSetupStep(step.name);

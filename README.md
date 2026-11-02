@@ -20,6 +20,17 @@ Select a profile with **`PACE_ENV`** (default: **`prod`**). Built-in profiles li
 | `prod` | Golden Pass LNG (production) | `.env.local` |
 | `dev3` | `https://dev-company3.pace-os.com/` | `.env.dev3.local` |
 
+### Which `.env` files to keep
+
+| File | In Git? | Purpose |
+|------|---------|---------|
+| `.env.example` | **Yes** | Prod template — copy to `.env.local` |
+| `.env.dev3.example` | **Yes** | Dev3 template — copy to `.env.dev3.local` |
+| `.env.local` | **No** (gitignored) | Your prod `TEST_EMAIL`, `TEST_PASSWORD`, SMTP, optional overrides |
+| `.env.dev3.local` | **No** (gitignored) | Dev3 credentials; keep `PACE_ENV=dev3` here |
+
+Run `npm run check:env` to see which files exist on your machine.
+
 Auth state is stored per environment under `.auth/<PACE_ENV>/` (gitignored).
 
 ### Setup

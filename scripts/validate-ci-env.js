@@ -29,8 +29,9 @@ if (missing.length) {
     console.error(`Repository: ${process.env.GITHUB_REPOSITORY || 'unknown'}`);
     console.error(`Event: ${process.env.GITHUB_EVENT_NAME || 'unknown'}`);
   } else {
-    console.error('Set them in CI/CD secrets/variables or in .env.local for local runs.');
-    console.error('See .env.example for the full list of supported variables.');
+    console.error('Set them in CI/CD secrets/variables or in .env.local / .env.dev3.local for local runs.');
+    console.error('Run: npm run check:env');
+    console.error('See .env.example and .env.dev3.example for templates.');
   }
 
   process.exit(1);
