@@ -26,7 +26,13 @@ const SLOW_CT_REPORTS = new Set([
   'Planned vs. Actual Earned Man-Hours',
   'Readiness Issues',
   'Compiled vs. Not Compiled IWPs',
-  'IWP Stage Overview'
+  'IWP Stage Overview',
+  'Activity Breakdown Structure',
+  'Lower Management — IWP Compiled vs. Not Compiled IWPs',
+  'Lower Management — Man-Hour Productivity Rate',
+  'Lower Management — CWP Execution Team Lead',
+  'Higher Management — EWP Management Summary',
+  'Higher Management — IWP Planned vs. Actual Earned'
 ]);
 
 function getCaseTimeoutMs(reportName) {
@@ -43,7 +49,9 @@ function getCaseAttemptMs(reportName) {
   return CASE_ATTEMPT_MS;
 }
 const DOWNLOAD_TIMEOUT_MS = Number(process.env.DOWNLOAD_TIMEOUT_MS) || (isDev3Ct ? 45000 : 90000);
-const CT_VIEW_LOAD_MS = Number(process.env.CT_VIEW_LOAD_MS) || (isDev3Ct ? 40000 : 25000);
+const CT_VIEW_LOAD_MS =
+  Number(process.env.CT_VIEW_LOAD_MS) ||
+  (isDev3Ct ? 40000 : isCi ? 45000 : 25000);
 
 function remainingMs(deadlineMs) {
   return Math.max(0, deadlineMs - Date.now());

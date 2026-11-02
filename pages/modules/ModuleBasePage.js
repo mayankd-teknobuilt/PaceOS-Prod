@@ -47,8 +47,7 @@ class ModuleBasePage extends BasePage {
     if (!/dashboard/i.test(this.page.url())) {
       await dashboard.openDashboard();
     } else {
-      await dashboard.dismissCookieBanner();
-      await dashboard.waitForDashboardReady();
+      await dashboard.assertDashboardStable();
     }
 
     const result = await dashboard.openModule(meta, context);
@@ -112,7 +111,7 @@ class ModuleBasePage extends BasePage {
             `Module "${meta.moduleName}" attempt ${attempt}/${REPORT_ATTEMPTS} failed: ${error.message}`
           );
           const dashboard = new StageDashboardPage(dashboardPage);
-          await dashboard.navigateToDashboardWithRecovery().catch(() => {});
+          await dashboard.ensureDashboardTabReady().catch(() => {});
         }
       }
     }

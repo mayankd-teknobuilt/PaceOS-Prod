@@ -23,7 +23,7 @@ module.exports = {
     { type: 'report', name: 'Daily Progress Not Submitted', option: 'Daily Progress Not Submitted' },
     { type: 'report', name: 'PMID-wise Progress', option: 'PMID-wise Progress' },
     { type: 'report', name: 'Compiled vs. Not Compiled IWPs', option: 'Compiled vs. Not Compiled IWPs' },
-    { type: 'button', name: 'CWP filter', label: 'CWP' },
+    { type: 'button', name: 'CWP filter', label: 'CWP', skipAnchor: true },
     { type: 'report', name: 'Execution Management Summary', option: 'Execution Management Summary' },
     { type: 'report', name: 'Preparation Management Summary', option: 'Preparation Management Summary' },
     { type: 'report', name: 'Execution Leadership Summary', option: 'Execution Leadership Summary' },

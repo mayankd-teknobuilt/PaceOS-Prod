@@ -18,10 +18,11 @@ exports/
 # Logs
 logs/
 
-# Environment variables
+# Environment variables (templates committed; secrets local only)
 .env
 .env.local
 .env.*.local
+# Not ignored: .env.example, .env.dev3.example
 
 # OS
 .DS_Store

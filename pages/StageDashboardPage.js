@@ -191,6 +191,21 @@ class StageDashboardPage extends BasePage {
     }
   }
 
+  async assertDashboardStable() {
+    if (this.page.isClosed()) {
+      throw new Error('Cannot verify dashboard: page is closed.');
+    }
+
+    await this.dismissCookieBanner();
+    await this.page.waitForLoadState('domcontentloaded', { timeout: 30000 }).catch(() => {});
+    await expect(this.page, 'Dashboard did not load.').toHaveURL(DASHBOARD_PATH, { timeout: 30000 });
+    await expect(this.tabs.first(), 'Dashboard categories did not load.').toBeVisible({ timeout: 30000 });
+
+    if (await this.loadingIndicator.count()) {
+      await this.loadingIndicator.first().waitFor({ state: 'hidden', timeout: 30000 }).catch(() => {});
+    }
+  }
+
   async waitForDashboardReady() {
     if (this.page.isClosed()) {
       throw new Error('Cannot wait for dashboard: page is closed.');
@@ -380,7 +395,7 @@ class StageDashboardPage extends BasePage {
     try {
       await moduleHost.goto(this.getDashboardUrl(), { waitUntil: 'domcontentloaded' });
       await hostDashboard.dismissCookieBanner();
-      await hostDashboard.waitForDashboardReady();
+      await hostDashboard.assertDashboardStable();
       if (tabName) {
         await hostDashboard.ensureDashboardTabReady(tabName);
       }

@@ -60,7 +60,16 @@ async function runReportBody(testCase, { navigation, errorMonitor, test }) {
 
 async function runReportWithRetry(testCase, { navigation, errorMonitor, test }) {
   let lastError = null;
-  const attemptCapMs = getCaseAttemptMs(testCase.reportName);
+  const needsCwpFilter = testCase.setupSteps.some(
+    step => step.type === 'button' && step.label === 'CWP'
+  );
+  let attemptCapMs = getCaseAttemptMs(testCase.reportName);
+  if (needsCwpFilter) {
+    attemptCapMs = Math.max(
+      attemptCapMs,
+      Number(process.env.SLOW_CASE_ATTEMPT_MS) || (process.env.CI === 'true' ? 120000 : 90000)
+    );
+  }
   const deadlineMs = Date.now() + getCaseTimeoutMs(testCase.reportName);
 
   for (let attempt = 1; attempt <= REPORT_ATTEMPTS; attempt++) {
@@ -89,6 +98,9 @@ async function runReportWithRetry(testCase, { navigation, errorMonitor, test }) 
 
       if (attempt < REPORT_ATTEMPTS && remainingMs(deadlineMs) > 0) {
         await navigation.recoverForReportRetry(navigation.dashboardPage.context(), errorMonitor);
+        if (testCase.categorySlug === 'execution-overview') {
+          await navigation.reportsPage.openTab('Execution Overview', { setup: true });
+        }
       }
     }
   }

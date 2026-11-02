@@ -92,7 +92,7 @@ function buildReportTestCases(category, { includeTrendViews = false } = {}) {
 
     for (const step of category.steps) {
       if (step.type === 'button') {
-        if (anchorReport) {
+        if (anchorReport && !step.skipAnchor) {
           preamble.push(anchorReport);
         }
         preamble.push(step);

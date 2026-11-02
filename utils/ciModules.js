@@ -15,7 +15,7 @@ function applyModulesCiDefaults() {
   const workerDefault =
     paceEnv === 'dev3'
       ? process.env.CI_DEV3_MODULE_WORKERS || '2'
-      : process.env.CI_PROD_MODULE_WORKERS || '2';
+      : process.env.CI_PROD_MODULE_WORKERS || '1';
   const defaults = { ...CI_MODULES_ENV, PLAYWRIGHT_WORKERS: process.env.PLAYWRIGHT_WORKERS || workerDefault };
 
   // One SSO account per job — cap workers so parallel specs do not invalidate each other's sessions.

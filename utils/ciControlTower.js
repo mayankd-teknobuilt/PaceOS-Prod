@@ -20,7 +20,7 @@ function applyControlTowerCiDefaults() {
   const workerDefault =
     paceEnv === 'dev3'
       ? process.env.CI_DEV3_CT_WORKERS || '2'
-      : process.env.CI_PROD_CT_WORKERS || '2';
+      : process.env.CI_PROD_CT_WORKERS || '1';
   if (!process.env.PLAYWRIGHT_WORKERS?.trim()) {
     process.env.PLAYWRIGHT_WORKERS = workerDefault;
   }
