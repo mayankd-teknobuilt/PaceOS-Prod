@@ -31,6 +31,9 @@ const SLOW_CT_REPORTS = new Set([
   'Lower Management — IWP Compiled vs. Not Compiled IWPs',
   'Lower Management — Man-Hour Productivity Rate',
   'Lower Management — CWP Execution Team Lead',
+  'Lower Management — EWP Supervisor Summary',
+  'Lower Management — CWP Supervisor Summary',
+  'Higher Management — EWP Leadership Summary',
   'Higher Management — EWP Management Summary',
   'Higher Management — IWP Planned vs. Actual Earned'
 ]);

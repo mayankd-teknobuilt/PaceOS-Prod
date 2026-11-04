@@ -26,7 +26,7 @@ Select a profile with **`PACE_ENV`** (default: **`prod`**). Built-in profiles li
 |------|---------|---------|
 | `.env.example` | **Yes** | Prod template — copy to `.env.local` |
 | `.env.dev3.example` | **Yes** | Dev3 template — copy to `.env.dev3.local` |
-| `.env.local` | **No** (gitignored) | Your prod `TEST_EMAIL`, `TEST_PASSWORD`, SMTP, optional overrides |
+| `.env.local` | **No** (gitignored) | Your prod `TEST_EMAIL`, `TEST_PASSWORD`, optional `POWER_AUTOMATE_WEBHOOK_URL`, `EMAIL_TO` |
 | `.env.dev3.local` | **No** (gitignored) | Dev3 credentials; keep `PACE_ENV=dev3` here |
 
 Run `npm run check:env` to see which files exist on your machine.
@@ -263,7 +263,21 @@ Profile URLs and project context come from `config/environments.js` after `PACE_
 | `DEV3_TEST_EMAIL`, `DEV3_TEST_PASSWORD` | Dev3 login (optional; defaults to prod creds if same user works on dev3) |
 | `ENABLE_DEV3_CI` | Set to `false` to skip dev3 jobs |
 | `CI_FULL_SUITE` | Set to `true` to run Control Tower + dev3 on pull requests |
-| `SMTP_PASSWORD` | Email report (optional) |
+| `POWER_AUTOMATE_WEBHOOK_URL` | HTTPS URL for the Power Automate “When a HTTP request is received” trigger (secret) |
+| `EMAIL_TO` | Report recipient (variable or secret; workflow default applies if unset) |
+| `EMAIL_SUBJECT_PREFIX` | Optional subject prefix (default `[PACE QA Daily Report]`) |
+
+After CI jobs finish, the **Report and notify** job merges JSON under `test-results/` and POSTs a payload to Power Automate (no SMTP). A successful HTTP response means the flow accepted the payload—not guaranteed Outlook delivery. Unit tests: `npm run test:report-email`.
+
+**Power Automate flow (no M365 admin required):**
+
+1. Create an **Instant cloud flow** → trigger **When a HTTP request is received**.
+2. Use **Sample payload to generate schema** with the JSON shape below (or paste from a test run).
+3. Add **Send an email (V2)** (Outlook): **To** = `recipient` from trigger body, **Subject** = `subject`, **Body** = `emailHtml` (HTML).
+4. Save the flow, copy the **HTTP POST URL**, and store it as GitHub secret `POWER_AUTOMATE_WEBHOOK_URL`.
+5. Match trigger authentication (often **Anyone** with link, or **Active Directory OAuth**—configure the Node script only if your trigger requires extra headers; default is anonymous POST with JSON body).
+
+Sample payload fields: `subject`, `recipient`, `executionDate`, `environment`, `reports[]` (each with `fileName`, `label`, `summary`, `report`), `emailHtml`.
 
 Install: `npm ci --ignore-scripts` then `npx playwright install --with-deps chromium` (Playwright ≥ 1.61 for Ubuntu 26.04 runners).
 

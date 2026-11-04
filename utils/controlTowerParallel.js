@@ -50,6 +50,14 @@ function buildReportTestCases(category, { includeTrendViews = false } = {}) {
       if (step.managementTab) {
         caseSetup.push({ type: 'managementTab', label: step.managementTab });
       }
+      if (step.scopeFilter) {
+        caseSetup.push({
+          type: 'button',
+          name: `${step.scopeFilter} scope filter`,
+          label: step.scopeFilter,
+          optional: true
+        });
+      }
 
       cases.push({
         id: `${category.slug}::${step.name}`,
