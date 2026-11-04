@@ -17,7 +17,7 @@ const COMMITTED = [
 const LOCAL_ONLY = [
   {
     file: '.env.local',
-    role: 'Prod credentials and SMTP (never commit)'
+    role: 'Prod credentials and Power Automate report webhook (never commit)'
   },
   {
     file: '.env.dev3.local',

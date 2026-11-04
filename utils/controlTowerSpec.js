@@ -60,9 +60,12 @@ async function runReportBody(testCase, { navigation, errorMonitor, test }) {
 
 async function runReportWithRetry(testCase, { navigation, errorMonitor, test }) {
   let lastError = null;
-  const needsCwpFilter = testCase.setupSteps.some(
-    step => step.type === 'button' && step.label === 'CWP'
-  );
+  const needsScopeFilter =
+    testCase.reportStep.scopeFilter ||
+    testCase.setupSteps.some(
+      step => step.type === 'button' && ['CWP', 'EWP', 'IWP'].includes(step.label)
+    );
+  const needsCwpFilter = Boolean(needsScopeFilter);
   let attemptCapMs = getCaseAttemptMs(testCase.reportName);
   if (needsCwpFilter) {
     attemptCapMs = Math.max(
@@ -100,6 +103,15 @@ async function runReportWithRetry(testCase, { navigation, errorMonitor, test }) 
         await navigation.recoverForReportRetry(navigation.dashboardPage.context(), errorMonitor);
         if (testCase.categorySlug === 'execution-overview') {
           await navigation.reportsPage.openTab('Execution Overview', { setup: true });
+        } else if (testCase.categorySlug === 'lagging-indicators' || testCase.categorySlug === 'leading-indicators') {
+          const tabStep = testCase.setupSteps.find(step => step.type === 'tab');
+          if (tabStep?.label) {
+            await navigation.reportsPage.openTab(tabStep.label, { setup: true });
+          }
+          const mgmtStep = testCase.setupSteps.find(step => step.type === 'managementTab');
+          if (mgmtStep?.label) {
+            await navigation.reportsPage.openManagementSection(mgmtStep.label, { setup: true });
+          }
         }
       }
     }

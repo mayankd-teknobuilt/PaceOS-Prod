@@ -50,6 +50,25 @@ class ControlTowerReportsPage extends BasePage {
     return panel.getByRole('button', { name: label, exact: true }).first();
   }
 
+  async clickFilterButtonIfVisible(label, stepName, options = {}) {
+    const scopes = [
+      this.reportsPage.locator('[role="tabpanel"]:visible').last(),
+      this.reportsPage
+    ];
+
+    for (const scope of scopes) {
+      const button = scope.getByRole('button', { name: label, exact: true }).first();
+      if (!(await button.isVisible().catch(() => false))) {
+        continue;
+      }
+      await this.clickFilterButton(label, stepName, options);
+      return true;
+    }
+
+    logger.info(`Filter button "${label}" not visible — skipping.`);
+    return false;
+  }
+
   async clickFilterButton(label, stepName, { setup = false } = {}) {
     await expect(async () => {
       const scopes = [
@@ -115,49 +134,132 @@ class ControlTowerReportsPage extends BasePage {
   }
 
   optionLocator(optionName, root = this.reportsPage) {
-    return root.getByRole('option', { name: new RegExp(this.escapeRegex(optionName), 'i') }).first();
+    const exact = new RegExp(`^\\s*${this.escapeRegex(optionName)}\\s*$`, 'i');
+    return root.getByRole('option', { name: exact }).first();
   }
 
-  async revealListboxOption(listbox, optionLabel) {
-    const option = this.optionLocator(optionLabel, listbox);
+  async findExactListboxOption(listbox, optionLabel) {
+    const normalizedWant = optionLabel.replace(/\s+/g, ' ').trim().toLowerCase();
+    const optionCount = await listbox.getByRole('option').count().catch(() => 0);
 
-    if (await option.isVisible().catch(() => false)) {
-      return option;
+    for (let index = 0; index < optionCount; index++) {
+      const candidate = listbox.getByRole('option').nth(index);
+      const text = ((await candidate.textContent()) || '').replace(/\s+/g, ' ').trim().toLowerCase();
+      if (text === normalizedWant && (await candidate.isVisible().catch(() => false))) {
+        return candidate;
+      }
     }
 
+    return null;
+  }
+
+  async findMenuOptionFallback(optionLabel) {
+    const pattern = new RegExp(`^\\s*${this.escapeRegex(optionLabel)}\\s*$`, 'i');
+    const roots = [
+      this.reportsPage.locator('[role="presentation"]:visible'),
+      this.reportsPage.locator('.MuiPopover-root:visible'),
+      this.reportsPage.locator('[id^="menu-"]:visible'),
+      this.reportsPage
+    ];
+
+    for (const root of roots) {
+      const byRole = root.getByRole('option', { name: pattern }).first();
+      if (await byRole.isVisible().catch(() => false)) {
+        return byRole;
+      }
+
+      const listItem = root.locator('li').filter({ hasText: pattern }).first();
+      if (await listItem.isVisible().catch(() => false)) {
+        return listItem;
+      }
+
+      const menuDiv = root.locator('div').filter({ hasText: pattern }).first();
+      if (await menuDiv.isVisible().catch(() => false)) {
+        return menuDiv;
+      }
+    }
+
+    return this.optionLocator(optionLabel);
+  }
+
+  async scrollListboxToOption(listbox, optionLabel) {
     await listbox.evaluate(element => {
       element.scrollTop = 0;
     }).catch(() => {});
-    await this.reportsPage.waitForTimeout(150);
-    if (await option.isVisible().catch(() => false)) {
-      return option;
-    }
 
-    await this.reportsPage.keyboard.press('Escape').catch(() => {});
-    const filterText = optionLabel.replace(/\s+/g, ' ').trim();
-    const typeahead = filterText.split(' ').slice(0, 3).join(' ').slice(0, 20);
-    if (typeahead.length >= 3) {
-      await this.reportsPage.keyboard.type(typeahead, { delay: 25 }).catch(() => {});
-      await this.reportsPage.waitForTimeout(200);
-      if (await option.isVisible().catch(() => false)) {
+    let stagnantRounds = 0;
+    for (let round = 0; round < 48; round++) {
+      const option = await this.findExactListboxOption(listbox, optionLabel);
+      if (option) {
         return option;
       }
-    }
 
-    const scrollRounds = filterText.length > 28 ? 32 : 22;
-    for (let attempt = 0; attempt < scrollRounds; attempt++) {
-      if (await option.isVisible().catch(() => false)) {
-        return option;
+      const scrollMeta = await listbox
+        .evaluate(element => ({
+          top: element.scrollTop,
+          max: element.scrollHeight - element.clientHeight
+        }))
+        .catch(() => ({ top: 0, max: 0 }));
+
+      if (scrollMeta.top >= scrollMeta.max - 2) {
+        stagnantRounds += 1;
+        if (stagnantRounds >= 3) {
+          break;
+        }
+      } else {
+        stagnantRounds = 0;
       }
 
       await listbox.evaluate(element => {
-        element.scrollTop += 220;
+        element.scrollTop += 260;
       }).catch(() => {});
       await this.reportsPage.keyboard.press('ArrowDown').catch(() => {});
-      await this.reportsPage.waitForTimeout(100);
+      await this.reportsPage.waitForTimeout(120);
     }
 
-    return option;
+    return this.findExactListboxOption(listbox, optionLabel);
+  }
+
+  async revealListboxOption(listbox, optionLabel, combobox = null) {
+    let option = await this.findExactListboxOption(listbox, optionLabel);
+    if (option) {
+      return option;
+    }
+
+    option = await this.scrollListboxToOption(listbox, optionLabel);
+    if (option) {
+      return option;
+    }
+
+    if (combobox) {
+      await combobox.click().catch(() => {});
+      await expect(this.openListbox).toBeVisible({ timeout: 5000 }).catch(() => {});
+      const typeahead = optionLabel.replace(/\s+/g, ' ').trim();
+      if (typeahead.length >= 3) {
+        await this.reportsPage.keyboard.press('Control+A').catch(() => {});
+        await this.reportsPage.keyboard.type(typeahead.slice(0, 28), { delay: 20 });
+        await this.reportsPage.waitForTimeout(350);
+        option = await this.findExactListboxOption(this.openListbox, optionLabel);
+        if (option) {
+          return option;
+        }
+        option = await this.scrollListboxToOption(this.openListbox, optionLabel);
+        if (option) {
+          return option;
+        }
+      }
+    }
+
+    return this.findMenuOptionFallback(optionLabel);
+  }
+
+  async activateReportOption(option, optionLabel) {
+    await option.scrollIntoViewIfNeeded();
+    await option.click({ timeout: 15000 });
+    if (/supervisor summary/i.test(optionLabel)) {
+      await option.dblclick({ timeout: 5000 }).catch(() => {});
+    }
+    await this.dismissOpenMenus();
   }
 
   async selectComboboxOption(combobox, optionLabel) {
@@ -170,13 +272,11 @@ class ControlTowerReportsPage extends BasePage {
       timeout: 15000
     });
 
-    const option = await this.revealListboxOption(listbox, optionLabel);
+    const option = await this.revealListboxOption(listbox, optionLabel, combobox);
     await expect(option, `Report option "${optionLabel}" was not visible.`).toBeVisible({
       timeout: 20000
     });
-    await option.scrollIntoViewIfNeeded();
-    await option.click();
-    await this.dismissOpenMenus();
+    await this.activateReportOption(option, optionLabel);
   }
 
   /** Main Intelligence report combobox (excludes pagination controls). */
@@ -488,17 +588,39 @@ class ControlTowerReportsPage extends BasePage {
     const panel = this.reportsPage.locator('[role="tabpanel"]:visible').last();
     const tabLists = panel.locator('[role="tablist"]');
     const listCount = await tabLists.count().catch(() => 0);
+    const normalizedLabel = label.replace(/\s+/g, ' ').trim().toLowerCase();
 
     for (let i = 0; i < listCount; i++) {
       await tabLists
         .nth(i)
         .evaluate((listEl, tabLabel) => {
           const norm = text => (text || '').replace(/\s+/g, ' ').trim().toLowerCase();
-          for (const el of listEl.querySelectorAll('[role="tab"], button')) {
-            if (norm(el.textContent) !== tabLabel.toLowerCase()) continue;
-            el.scrollIntoView({ block: 'nearest', inline: 'center' });
+          const want = tabLabel.toLowerCase();
+          const targets = [...listEl.querySelectorAll('[role="tab"], button')];
+
+          const scrollIntoMatch = () => {
+            for (const el of targets) {
+              if (norm(el.textContent) !== want) continue;
+              el.scrollIntoView({ block: 'nearest', inline: 'center' });
+              return true;
+            }
+            return false;
+          };
+
+          if (scrollIntoMatch()) {
+            return;
           }
-        }, label)
+
+          let node = listEl;
+          while (node && node !== document.body) {
+            if (node.scrollWidth > node.clientWidth + 4) {
+              node.scrollLeft = node.scrollWidth;
+            }
+            node = node.parentElement;
+          }
+
+          scrollIntoMatch();
+        }, normalizedLabel)
         .catch(() => {});
     }
   }
@@ -516,6 +638,11 @@ class ControlTowerReportsPage extends BasePage {
       if ((await button.count().catch(() => 0)) > 0) {
         return button;
       }
+    }
+
+    const textMatch = panel.getByText(pattern).first();
+    if (await textMatch.isVisible().catch(() => false)) {
+      return textMatch;
     }
 
     return null;
@@ -570,7 +697,17 @@ class ControlTowerReportsPage extends BasePage {
     await expect(tab, `Tab "${label}" was not found.`).toBeAttached({ timeout: 30000 });
     const selected = (await tab.getAttribute('aria-selected')) === 'true';
     if (!selected) {
-      await tab.click({ timeout: 15000 });
+      const useDblClick =
+        getPaceEnvKey() === 'dev3' &&
+        !options.nested &&
+        /^(Lagging Indicators|Leading Indicators)$/i.test(label);
+      if (useDblClick) {
+        await tab.dblclick({ timeout: 15000 }).catch(async () => {
+          await tab.click({ timeout: 15000 });
+        });
+      } else {
+        await tab.click({ timeout: 15000 });
+      }
       let stillSelected = await tab.getAttribute('aria-selected').catch(() => null);
       if (stillSelected !== 'true') {
         await tab.click({ timeout: 5000, force: true }).catch(() => {});
@@ -621,6 +758,24 @@ class ControlTowerReportsPage extends BasePage {
 
     if (step.type === 'button') {
       const isFilter = ['Stopped', 'CWP', 'EWP', 'IWP'].includes(step.label);
+      if (step.optional) {
+        const scopes = [
+          this.reportsPage.locator('[role="tabpanel"]:visible').last(),
+          this.reportsPage
+        ];
+        let visible = false;
+        for (const scope of scopes) {
+          const button = scope.getByRole('button', { name: step.label, exact: true }).first();
+          if (await button.isVisible().catch(() => false)) {
+            visible = true;
+            break;
+          }
+        }
+        if (!visible) {
+          logger.info(`Optional setup button "${step.label}" not visible — skipping.`);
+          return;
+        }
+      }
       await this.clickButton(step.label, step.name, { filter: isFilter, setup: options.setup });
       return;
     }

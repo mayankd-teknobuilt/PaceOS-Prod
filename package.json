@@ -81,7 +81,8 @@
     "postinstall": "node -e \"if (!process.env.CI) require('child_process').execSync('npx playwright install chromium', {stdio:'inherit'})\"",
     "generate:test-catalog": "node scripts/generate-test-catalog-excel.js",
     "report:open": "npx playwright show-report ./playwright-report",
-    "allure:report": "allure serve allure-results"
+    "allure:report": "allure serve allure-results",
+    "test:report-email": "node --test scripts/send-test-report-email.test.js"
   },
   "keywords": [],
   "author": "",
@@ -94,7 +95,6 @@
     "allure-playwright": "^3.10.1",
     "cross-env": "^7.0.3",
     "dotenv": "^16.6.1",
-    "nodemailer": "^6.10.1",
     "xlsx": "^0.18.5"
   },
   "dependencies": {

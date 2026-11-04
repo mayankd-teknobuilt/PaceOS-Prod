@@ -20,6 +20,9 @@ function shouldIgnoreHttpError(status, url) {
   if (status === 401) {
     return true;
   }
+  if (status === 404 && ANALYTICS_DATASERVICES.test(url)) {
+    return true;
+  }
   // Dev3 tenant analytics occasionally 400 on valid UI navigation (empty datasets).
   if (status === 400 && /dev-in-dataservices-api\.paceos\.io/i.test(url)) {
     return true;
